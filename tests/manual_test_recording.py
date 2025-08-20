@@ -98,6 +98,7 @@ def recording_test(
         assert type(action) == list
 
         state = game.get_state()
+        assert state is not None
         variables = normalize_variables(state.game_variables)
         history_of_variables.append(variables)
         assert type(variables) == list
@@ -131,6 +132,7 @@ def recording_test(
         print("  Replaying:", state_number, "/", len(history_of_variables), end="\r")
 
         state = game.get_state()
+        assert state is not None
         variables = normalize_variables(state.game_variables)
         assert type(variables) == list
 

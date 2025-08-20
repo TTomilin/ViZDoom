@@ -148,6 +148,7 @@ if __name__ == "__main__":
 
             # Gets the state
             state = game.get_state()
+            assert state is not None
 
             # Which consists of:
             n = state.number

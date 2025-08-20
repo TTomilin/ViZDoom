@@ -32,6 +32,9 @@ Shows how delta buttons work (they may take values other than 0 and 1 and can be
 Tests the performance of the environment in frames per second. It should give you some idea how fast ViZDoom works on your hardware.
 
 ### [gymnasium_wrapper.py](https://github.com/mwydmuch/ViZDoom/blob/master/examples/python/gymnasium_wrapper.py)
+Shows how to use custom ViZDoom environment with [Gymnasium](https://gymnasium.farama.org/).
+
+### [gymnasium_wrapper.py](https://github.com/mwydmuch/ViZDoom/blob/master/examples/python/gymnasium_wrapper.py)
 Shows how to use ViZDoom Gymnasium wrapper.
 
 ### [labels_buffer.py](https://github.com/mwydmuch/ViZDoom/blob/master/examples/python/labels_buffer.py)
@@ -39,9 +42,6 @@ Demonstrates how to use the labels buffer.
 
 ### [learning_pytorch.py](https://github.com/mwydmuch/ViZDoom/blob/master/examples/python/learning_pytorch.py), [learning_pytorch_test.py](https://github.com/mwydmuch/ViZDoom/blob/master/examples/python/learning_pytorch_test.py)
 Contains an example of how to implement basic Q-learning on the interface within PyTorch.
-
-### [learning_theano.py](https://github.com/mwydmuch/ViZDoom/blob/master/examples/python/learning_theano.py)
-Contains an example of how to implement basic Q-learning on the interface within Theano.
 
 ### [learning_tensorflow.py](https://github.com/mwydmuch/ViZDoom/blob/master/examples/python/learning_tensorflow.py)
 Contains an example of how to implement basic Q-learning on the interface within Tensorflow.

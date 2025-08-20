@@ -9,7 +9,7 @@ def camel_case_to_snake_case(text):
 
 
 FILES_TO_PARSE = [
-    {"filepath": "docs/api/cpp/doomGame.md", "namespace": "DoomGamePython"},
+    {"filepath": "docs/api/cpp/doom_game.md", "namespace": "DoomGamePython"},
     {"filepath": "docs/api/cpp/utils.md"},
 ]
 OUTPUT_FILE = "src/lib_python/ViZDoomMethodsDocstrings.h"
@@ -86,7 +86,7 @@ namespace docstrings {
                 if match:
                     if started:
                         next_docstring = next_docstring.strip()
-                        next_docstring += f'){RAW_STRING_ESCAPE_SEQ}";\n\n'
+                        next_docstring += f'){RAW_STRING_ESCAPE_SEQ}";\n\n'  # noqa
                         output_file.write(next_docstring)
 
                     next_docstring = ""
@@ -110,7 +110,7 @@ namespace docstrings {
 
             if started:
                 output_file.write(
-                    f'{next_docstring.strip()}){RAW_STRING_ESCAPE_SEQ}";\n\n'
+                    f'{next_docstring.strip()}){RAW_STRING_ESCAPE_SEQ}";\n\n'  # noqa
                 )
 
             if "namespace" in file:

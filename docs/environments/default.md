@@ -5,7 +5,7 @@ Below we describe a default singleplayer scenarios (original ViZDoom nomenclatur
 
 ## How to use default scenarios
 
-When using original ViZDoom API, each scenario can be loaded [`load_config`](../api/python/doomGame.md#vizdoom.DoomGame.load_config) (Python)/[`loadConfig`](../api/cpp/doomGame.md#loadconfig) (C++) method:
+When using original ViZDoom API, each scenario can be loaded [`load_config`](../api/python/doom_game.md#vizdoom.DoomGame.load_config) (Python)/[`loadConfig`](../api/cpp/doom_game.md#loadconfig) (C++) method:
 
 Python example:
 ```{code-block} python
@@ -15,7 +15,7 @@ game = vzd.DoomGame()
 game.load_config(os.path.join(vzd.scenarios_path, "basic.cfg")) # or any other scenario file
 ```
 
-When using Gymnasium (or Gym) API the scenario can be loaded by passing the scenario id to `make` method like-this:
+When using Gymnasium API the scenario can be loaded by passing the scenario id to `make` method like-this:
 
 ```{code-block} python
 import gymnasium

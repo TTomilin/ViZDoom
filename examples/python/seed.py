@@ -88,6 +88,7 @@ if __name__ == "__main__":
         while not game.is_episode_finished():
             # Gets the state and possibly to something with it
             state = game.get_state()
+            assert state is not None
             screen_buf = state.screen_buffer
             vars = state.game_variables
 

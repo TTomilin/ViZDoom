@@ -77,6 +77,7 @@ if __name__ == "__main__":
         while not game.is_episode_finished():
             # Gets the state
             state = game.get_state()
+            assert state is not None and state.game_variables is not None
 
             # Shows automap buffer
             map = state.automap_buffer
@@ -88,6 +89,7 @@ if __name__ == "__main__":
             game.make_action(choice(actions))
 
             print(f"State #{state.number}")
+
             print(
                 "Player position X:",
                 state.game_variables[0],

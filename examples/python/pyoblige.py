@@ -110,6 +110,7 @@ if __name__ == "__main__":
         time = 0
         while not game.is_episode_finished():
             state = game.get_state()
+            assert state is not None and state.game_variables is not None
             time = game.get_episode_time()
 
             game.advance_action()

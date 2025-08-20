@@ -43,6 +43,7 @@ while True:
     print(f"Map {i}")
     while not game.is_episode_finished():
         state = game.get_state()
+        assert state is not None
 
         game.advance_action()
         last_action = game.get_last_action()

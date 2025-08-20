@@ -29,7 +29,15 @@ package_path = os.path.join(package_root, "vizdoom")
 packages = ["vizdoom"]
 shutil.rmtree(package_path, ignore_errors=True)
 os.makedirs(package_path, exist_ok=True)
-package_data = ["__init__.py", "bots.cfg", "freedoom2.wad", "vizdoom.pk3"]
+package_data = [
+    "__init__.py",
+    "generate_vizdoom_stubs.py",
+    "vizdoom.pyi",
+    "py.typed",
+    "bots.cfg",
+    "freedoom2.wad",
+    "vizdoom.pk3",
+]
 
 
 # Add subpackages
@@ -40,7 +48,6 @@ def add_subpackage(dir_path):
 
 
 add_subpackage("scenarios")
-add_subpackage("gym_wrapper")
 add_subpackage("gymnasium_wrapper")
 
 # Platform specific package data
@@ -64,7 +71,10 @@ def get_vizdoom_version():
         with open("CMakeLists.txt") as cmake_file:
             lines = cmake_file.read()
             version = re.search(r"VERSION\s+([0-9].[0-9].[0-9]+)", lines).group(1)
-            return version
+            version_suffix = re.search(
+                r"ViZDoom_VERSION_SUFFIX\s+\"((?:a|b|rc|.post|.dev)[0-9]+|)\"", lines
+            ).group(1)
+            return version + version_suffix
 
     except Exception:
         raise RuntimeError(
@@ -131,6 +141,12 @@ class BuildCommand(build):
                 f"VIZDOOM_CMAKE_ARGS is set, the following arguments will be added to cmake command: {env_cmake_args}"
             )
 
+        # MacOS specific flag for specifying the architecture of the binary
+        if platform.startswith("darwin"):
+            macos_arch = os.getenv("VIZDOOM_MACOS_ARCH")
+            if macos_arch is not None:
+                cmake_arg_list.append(f"-DCMAKE_APPLE_SILICON_PROCESSOR={macos_arch}")
+
         # Windows specific version of the libraries
         if platform.startswith("win"):
             generator = os.getenv("VIZDOOM_BUILD_GENERATOR_NAME")
@@ -182,7 +198,7 @@ class BuildCommand(build):
             os.remove("CMakeCache.txt")
 
         cmake_arg_list.append(".")
-        print(f"Running cmake with arguments: {cmake_arg_list}", file=sys.stderr)
+        sys.stderr.write(f"Running cmake with arguments: {cmake_arg_list}")
 
         try:
             if platform.startswith("win"):
@@ -198,7 +214,7 @@ class BuildCommand(build):
         except subprocess.CalledProcessError:
             sys.stderr.write(
                 "\033[1m\nInstallation from source failed, you may be missing some dependencies. "
-                "\nPlease check https://vizdoom.farama.org/introduction/pythonQuickstart for details.\n\n\033[0m"
+                "\nPlease check https://vizdoom.farama.org/introduction/python_quickstart for details.\n\n\033[0m"
             )
             raise
 
@@ -215,11 +231,10 @@ setup(
     author="Marek Wydmuch, Michał Kempka, Wojciech Jaśkowski, Farama Foundation, and the respective contributors",
     author_email="mwydmuch@cs.put.poznan.pl",
     extras_require={
-        "gym": ["gym>=0.26.0", "pygame>=2.1.3"],
         "test": ["pytest", "psutil"],
     },
     install_requires=["numpy", "gymnasium>=0.28.0", "pygame>=2.1.3"],
-    python_requires=">=3.8.0,<3.13",
+    python_requires=">=3.9.0,<3.14",
     packages=packages,
     package_dir={"": package_root},
     package_data={"vizdoom": package_data},
@@ -235,11 +250,11 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Programming Language :: C++",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
         "Operating System :: Microsoft :: Windows",
         "Operating System :: MacOS :: MacOS X",
         "Operating System :: POSIX :: Linux",

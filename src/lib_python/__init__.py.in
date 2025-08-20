@@ -28,7 +28,7 @@ configs = [cfg for cfg in sorted(_os.listdir(scenarios_path)) if cfg.endswith(".
 
 # Farama notifications
 try:
-    from farama_notifications import notifications
+    from farama_notifications import notifications  # type: ignore
 
     if "vizdoom" in notifications and __version__ in notifications["vizdoom"]:
         print(notifications["vizdoom"][__version__], file=_sys.stderr)

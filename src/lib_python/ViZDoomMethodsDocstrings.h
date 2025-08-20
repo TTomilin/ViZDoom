@@ -84,6 +84,9 @@ processes the specified number of tics, updates the state and calculates a new r
 :meth:`make_action` and :meth:`advance_action` methods
 will take no effect after this point (unless :meth:`new_episode` method is called).)DOCSTRING";
 
+    const char *isEpisodeTimeoutReached = R"DOCSTRING(Returns ``True`` if the current episode is in the terminal state due to exceeding the time limit (timeout)
+set with :meth:`set_episode_timeout`` method or via ``+timelimit` parameter.)DOCSTRING";
+
     const char *isPlayerDead = R"DOCSTRING(Returns ``True`` if the player is dead.
 In singleplayer, the player's death is equivalent to the end of the episode.
 In multiplayer, when the player is dead :meth:`respawn_player` method can be called.)DOCSTRING";
@@ -138,6 +141,8 @@ that were added with :meth:`set_available_buttons` or/and :meth:`add_available_b
 
 Has no effect when the game is running.
 
+Default value: `[]` (empty vector/list, no buttons).
+
 Config key: ``availableButtons``/``available_buttons`` (list of values))DOCSTRING";
 
     const char *addAvailableButton = R"DOCSTRING(Adds :class:`.Button` type (e.g. ``TURN_LEFT``, ``MOVE_FORWARD``) to available buttons and sets the maximum allowed, absolute value for the specified button.
@@ -158,6 +163,8 @@ Setting the maximum value to 0 results in no constraint at all (infinity).
 This method makes sense only for delta buttons.
 The constraints limit applies in all Modes.
 
+Default value: 0 (no constraint, infinity).
+
 Has no effect when the game is running.)DOCSTRING";
 
     const char *getButtonMaxValue = R"DOCSTRING(Returns the maximum allowed absolute value for the specified :class:`.Button`.)DOCSTRING";
@@ -170,6 +177,8 @@ that were added with :meth:`set_available_game_variables` or/and :meth:`add_avai
     const char *setAvailableGameVariables = R"DOCSTRING(Sets list of :class:`.GameVariable` s as available game variables in the :class:`.GameState` returned by :meth:`get_state` method.
 
 Has no effect when the game is running.
+
+Default value: `[]` (empty vector/list, no game variables).
 
 Config key: ``availableGameVariables``/``available_game_variables`` (list of values))DOCSTRING";
 
@@ -194,6 +203,8 @@ It could be used for e.g. shaping. Returns 0 in case of not finding given :class
 It is useful for changing additional game settings.
 Use with caution, as in rare cases it may prevent the library from working properly.
 Using this method is equivalent to first calling :meth:`clear_game_args` and then :meth:`add_game_args`.
+
+Default value: ``""`` (empty string, no additional arguments).
 
 Config key: ``gameArgs``/``game_args``
 
@@ -236,6 +247,194 @@ Config key: ``livingReward``/``living_reward``)DOCSTRING";
 Default value: 0
 
 Config key: ``deathPenalty``/``death_penalty``)DOCSTRING";
+
+    const char *getDeathReward = R"DOCSTRING(Returns the reward for the player's death. It is equal to negation of value returned by :meth:`get_death_reward`.
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *setDeathReward = R"DOCSTRING(Sets a reward for the player's death. A negative value is also allowed.
+
+Default value: 0
+
+Config key: ``deathReward``/``death_reward``
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *getMapExitReward = R"DOCSTRING(Returns the reward for finishing a map.
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *setMapExitReward = R"DOCSTRING(Sets a reward for finishing a map (finding an exit or succeeding in other programmed objective). A negative value is also allowed.
+
+Default value: 0
+
+Config key: ``mapExitReward``/``map_exit_reward``
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *getKillReward = R"DOCSTRING(Returns the reward granted to the player for killing an enemy.
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *setKillReward = R"DOCSTRING(Sets the reward granted to the player for killing an enemy. A negative value is also allowed.
+
+Default value: 0
+
+Config key: ``killReward``/``kill_reward``
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *getItemReward = R"DOCSTRING(Returns the reward granted to the player for picking up an item.
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *setItemReward = R"DOCSTRING(Sets the reward granted to the player for picking up an item. A negative value is also allowed.
+
+Default value: 0
+
+Config key: ``itemReward``/``item_reward``
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *getSecretReward = R"DOCSTRING(Returns the reward granted to the player for discovering a secret.
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *setSecretReward = R"DOCSTRING(Sets the reward granted to the player for discovering a secret. A negative value is also allowed.
+
+Default value: 0
+
+Config key: ``secretReward``/``secret_reward``
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *getFragReward = R"DOCSTRING(Returns the reward granted to the player for scoring a frag (killing another player in multiplayer).
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *setFragReward = R"DOCSTRING(Sets the reward granted to the player for scoring a frag. A negative value is also allowed.
+
+Default value: 0
+
+Config key: ``fragReward``/``frag_reward``
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *getHitReward = R"DOCSTRING(Returns the reward granted to the player for hitting (damaging) an enemy.
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *setHitReward = R"DOCSTRING(Sets the reward granted to the player for hitting (damaging) an enemy.
+The reward is the same despite the amount of damage dealt.
+A negative value is also allowed.
+
+Default value: 0
+
+Config key: ``hitReward``/``hit_reward``
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *getHitTakenReward = R"DOCSTRING(Returns the reward granted to the player when hit (damaged) by an enemy.
+The reward is the same despite the amount of damage taken.
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *setHitTakenReward = R"DOCSTRING(Sets the reward granted to the player when hit (damaged) by an enemy.
+The reward is the same despite the amount of damage taken.
+A negative value is also allowed.
+
+Default value: 0
+
+Config key: ``hitTakenReward``/``hit_taken_reward``
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *getHitTakenPenalty = R"DOCSTRING(Returns the penalty for the player when hit (damaged) by an enemy.
+The penalty is the same despite the amount of damage taken.
+It is equal to negation of value returned by :meth:`get_hit_taken_reward`.
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *setHitTakenPenalty = R"DOCSTRING(Sets a penalty for the player when hit (damaged) by an enemy.
+The penalty is the same despite the amount of damage taken.
+Note that in case of a negative value, the player will be rewarded upon being hit.
+
+Default value: 0
+
+Config key: ``hitTakenPenalty``/``hit_taken_penalty``
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *getDamageMadeReward = R"DOCSTRING(Returns the reward granted to the player for damaging an enemy, proportional to the damage dealt.
+Every point of damage dealt to an enemy will result in a reward equal to the value returned by this method.
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *setDamageMadeReward = R"DOCSTRING(Sets the reward granted to the player for damaging an enemy, proportional to the damage dealt.
+Every point of damage dealt to an enemy will result in a reward equal to the value returned by this method.
+A negative value is also allowed.
+
+
+Default value: 0
+
+Config key: ``damageMadeReward``/``damage_made_reward``
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *getDamageTakenReward = R"DOCSTRING(Returns the reward granted to the player when damaged by an enemy, proportional to the damage received.
+Every point of damage taken will result in a reward equal to the value returned by this method.
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *setDamageTakenReward = R"DOCSTRING(Sets the reward granted to the player when damaged by an enemy, proportional to the damage received.
+Every point of damage taken will result in a reward equal to the set value.
+A negative value is also allowed.
+
+Default value: 0
+
+Config key: ``damageTakenReward``/``damage_taken_reward``
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *getDamageTakenPenalty = R"DOCSTRING(Returns the penalty for the player when damaged by an enemy, proportional to the damage received.
+Every point of damage taken will result in a penalty equal to the value returned by this method.
+It is equal to negation of value returned by :meth:`get_damage_taken_reward`.
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *setDamageTakenPenalty = R"DOCSTRING(Sets a penalty for the player when damaged by an enemy, proportional to the damage received.
+Every point of damage taken will result in a penalty equal to the set value.
+Note that in case of a negative value, the player will be rewarded upon receiving damage.
+
+Default value: 0
+
+Config key: ``damageTakenPenalty``/``damage_taken_penalty``
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *getHealthReward = R"DOCSTRING(Returns the reward granted to the player for getting health points.
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *setHealthReward = R"DOCSTRING(Sets the reward granted to the player for getting health points. A negative value is also allowed.
+
+Default value: 0
+
+Config key: ``healthReward``/``health_reward``
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *getArmorReward = R"DOCSTRING(Returns the reward granted to the player for getting armor points.
+
+Note: added in 1.3.0)DOCSTRING";
+
+    const char *setArmorReward = R"DOCSTRING(Sets the reward granted to the player for getting armor points. A negative value is also allowed.
+
+Default value: 0
+
+Config key: ``armorReward``/``armor_reward``
+
+Note: added in 1.3.0)DOCSTRING";
 
     const char *getLastReward = R"DOCSTRING(Returns a reward granted after the last update of state.)DOCSTRING";
 
@@ -296,7 +495,7 @@ If not provided, the default Doom single-player maps will be loaded.
 
 Default value: ``""``
 
-Config key: ``DoomScenarioPath``/``set_doom_scenario_path``)DOCSTRING";
+Config key: ``DoomScenarioPath``/``doom_scenario_path``)DOCSTRING";
 
     const char *setDoomMap = R"DOCSTRING(Sets the map name to be used.
 
@@ -445,7 +644,7 @@ which determines what will be visible on it.
 
 Default value: ``NORMAL``
 
-Config key: ``automapMode``/``set_automap_mode``
+Config key: ``automapMode``/``automap_mode``
 
 Note: added in 1.1.0.)DOCSTRING";
 
@@ -658,7 +857,7 @@ Default value: ``False``
 
 Has no effect when the game is running.
 
-Config key: ``audioSamplingRate``/``audio_samping_rate``
+Config key: ``audioSamplingRate``/``audio_sampling_rate``
 
 See also:
 
@@ -703,6 +902,10 @@ Note: changed in 1.1.0)DOCSTRING";
     const char *msToDoomTics = R"DOCSTRING(Calculates the number of milliseconds that will pass during specified number of tics.
 
 Note: changed in 1.1.0)DOCSTRING";
+
+    const char *getDefaultCategories = R"DOCSTRING(Returns the default object categories of ViZDoom.
+
+Note: added in 1.3.0.)DOCSTRING";
 
     const char *doomTicsToSec = R"DOCSTRING(Calculates how many tics will be made during given number of seconds.
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #####################################################################
-# Example for running a vizdoom scenario as a gym env
+# Example for running a vizdoom scenario as a Gymnasium env
 #####################################################################
 
 import gymnasium
@@ -10,7 +10,9 @@ from vizdoom import gymnasium_wrapper  # noqa
 
 
 if __name__ == "__main__":
-    env = gymnasium.make("VizdoomHealthGatheringSupreme-v0", render_mode="human")
+    env = gymnasium.make(
+        "VizdoomHealthGatheringSupreme-v1", render_mode="human", frame_skip=4
+    )
 
     # Rendering random rollouts for ten episodes
     for _ in range(10):

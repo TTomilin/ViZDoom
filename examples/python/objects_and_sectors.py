@@ -69,6 +69,7 @@ if __name__ == "__main__":
 
             # Gets the state
             state = game.get_state()
+            assert state is not None and state.game_variables is not None
             game.make_action(choice(actions))
 
             print(f"State #{state.number}")

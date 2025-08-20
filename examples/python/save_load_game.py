@@ -48,6 +48,7 @@ if __name__ == "__main__":
 
     while not game.is_episode_finished():
         state = game.get_state()
+        assert state is not None and state.game_variables is not None
         reward = game.make_action(choice(actions))
 
         if state.number == save_after_steps:
@@ -68,6 +69,7 @@ if __name__ == "__main__":
     game.load("save.png")
     # A new state is available after loading.
     state = game.get_state()
+    assert state is not None and state.game_variables is not None
 
     # There can be small difference in some of the game variables
     print("\nGame loaded!")

@@ -44,6 +44,7 @@ for i in range(episodes):
 
     while not game.is_episode_finished():
         s = game.get_state()
+        assert s is not None and s.game_variables is not None
 
         a = choice(actions)
         r = game.make_action(choice(actions))
@@ -81,6 +82,7 @@ for i in range(episodes):
     while not game.is_episode_finished():
         # Get a state
         s = game.get_state()
+        assert s is not None and s.game_variables is not None
 
         # Use advance_action instead of make_action to proceed
         game.advance_action()

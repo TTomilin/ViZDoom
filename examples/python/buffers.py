@@ -103,6 +103,7 @@ if __name__ == "__main__":
         while not game.is_episode_finished():
             # Gets the state and possibly do something with it
             state = game.get_state()
+            assert state is not None
 
             # Display all the buffers here!
 

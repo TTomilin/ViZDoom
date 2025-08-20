@@ -111,6 +111,7 @@ if __name__ == "__main__":
 
             # Get the state
             state = game.get_state()
+            assert state is not None and state.game_variables is not None
 
             # Get labels buffer, that is always in 8-bit grey channel format.
             # Show only visible game objects (enemies, pickups, exploding barrels etc.), each with a unique label.
@@ -149,6 +150,7 @@ if __name__ == "__main__":
             game.make_action(choice(actions))
 
             print(f"State #{state.number}")
+
             print(
                 "Player position: x:",
                 state.game_variables[0],

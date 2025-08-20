@@ -5,7 +5,7 @@ The declarations of all the enums can be found in the `include/ViZDoomTypes.h` h
 
 ## `Mode`
 
-Enum type that defines all supported modes.
+Enum type that defines all supported modes for controlling the game.
 
 - **PLAYER** - synchronous player mode
 - **SPECTATOR** - synchronous spectator mode
@@ -23,10 +23,10 @@ In **ASYNC** modes the game progress with constant speed (default 35 tics per se
 All modes can be used in singleplayer and multiplayer.
 
 See also:
-- [`DoomGame::getMode`](./doomGame.md#getmode),
-- [`DoomGame::setMode`](./doomGame.md#setmode),
-- [`DoomGame::getTicrate`](./doomGame.md#getticrate),
-- [`DoomGame::setTicrate`](./doomGame.md#setticrate).
+- [`DoomGame::getMode`](./doom_game.md#getmode),
+- [`DoomGame::setMode`](./doom_game.md#setmode),
+- [`DoomGame::getTicrate`](./doom_game.md#getticrate),
+- [`DoomGame::setTicrate`](./doom_game.md#setticrate).
 
 
 ---
@@ -57,8 +57,8 @@ In **GRAY8** and **DOOM_256_COLORS8** format **screenBuffer** and **automapBuffe
 **depthBuffer** and **lablesBuffer** always store single 8-bit values, so they always have [y, x] shape.
 
 See also:
-- [`DoomGame::getScreenFormat`](./doomGame.md#getscreenformat),
-- [`DoomGame::setScreenFormat`](./doomGame.md#setscreenformat),
+- [`DoomGame::getScreenFormat`](./doom_game.md#getscreenformat),
+- [`DoomGame::setScreenFormat`](./doom_game.md#setscreenformat),
 - [examples/python/buffers.py](https://github.com/Farama-Foundation/ViZDoom/tree/master/examples/python/buffers.py).
 
 
@@ -105,9 +105,9 @@ Enum type that defines all supported resolutions - shapes of **screenBuffer**, *
 - **RES_1920X1080** (16:9)
 
 See also:
-- [`DoomGame::setScreenResolution`](./doomGame.md#setscreenresolution),
-- [`DoomGame::getScreenWidth`](./doomGame.md#getscreenwidth),
-- [`DoomGame::getScreenHeight`](./doomGame.md#getscreenheight).
+- [`DoomGame::setScreenResolution`](./doom_game.md#setscreenresolution),
+- [`DoomGame::getScreenWidth`](./doom_game.md#getscreenwidth),
+- [`DoomGame::getScreenHeight`](./doom_game.md#getscreenheight).
 
 
 ---
@@ -121,7 +121,7 @@ Enum type that defines all **automapBuffer** modes.
 - **OBJECTS_WITH_SIZE** - In addition to the previous, all things are wrapped in a box showing their size.
 
 See also:
-- [`DoomGame::setAutomapMode`](./doomGame.md#setautomapmode),
+- [`DoomGame::setAutomapMode`](./doom_game.md#setautomapmode),
 - [examples/python/buffers.py](https://github.com/Farama-Foundation/ViZDoom/tree/master/examples/python/buffers.py).
 
 
@@ -183,10 +183,10 @@ you can convert them to floating point by using [`doomFixedToDouble`](utils.md#d
 
 See also:
 - [ZDoom Wiki: ACS](http://zdoom.org/wiki/ACS),
-- [`DoomGame::getAvailableGameVariables`](./doomGame.md#getavailablegamevariables),
-- [`DoomGame::setAvailableGameVariables`](./doomGame.md#setavailablegamevariables),
-- [`DoomGame::addAvailableGameVariable`](./doomGame.md#addavailablegamevariable),
-- [`DoomGame::getGameVariable`](./doomGame.md#getgamevariable),
+- [`DoomGame::getAvailableGameVariables`](./doom_game.md#getavailablegamevariables),
+- [`DoomGame::setAvailableGameVariables`](./doom_game.md#setavailablegamevariables),
+- [`DoomGame::addAvailableGameVariable`](./doom_game.md#addavailablegamevariable),
+- [`DoomGame::getGameVariable`](./doom_game.md#getgamevariable),
 - [`doomFixedToDouble`](utils.md#doomfixedtodouble),
 - [examples/python/basic.py](https://github.com/Farama-Foundation/ViZDoom/tree/master/examples/python/basic.py),
 - [examples/python/shaping.py](https://github.com/Farama-Foundation/ViZDoom/tree/master/examples/python/shaping.py).
@@ -258,11 +258,11 @@ In case of **MOVE_FORWARD_BACKWARD_DELTA**, **MOVE_LEFT_RIGHT_DELTA**, **MOVE_UP
 
 See also:
 - [Doom Wiki: Map unit](https://doomwiki.org/wiki/Map_unit),
-- [`DoomGame::getAvailableButtons`](./doomGame.md#getavailablebuttons),
-- [`DoomGame::setAvailableButtons`](./doomGame.md#setavailablebuttons),
-- [`DoomGame::addAvailableButton`](./doomGame.md#addavailablebutton),
-- [`DoomGame::setButtonMaxValue`](./doomGame.md#setbuttonmaxvalue),
-- [`DoomGame::getButtonMaxValue`](./doomGame.md#getbuttonmaxvalue),
+- [`DoomGame::getAvailableButtons`](./doom_game.md#getavailablebuttons),
+- [`DoomGame::setAvailableButtons`](./doom_game.md#setavailablebuttons),
+- [`DoomGame::addAvailableButton`](./doom_game.md#addavailablebutton),
+- [`DoomGame::setButtonMaxValue`](./doom_game.md#setbuttonmaxvalue),
+- [`DoomGame::getButtonMaxValue`](./doom_game.md#getbuttonmaxvalue),
 - [examples/python/basic.py](https://github.com/Farama-Foundation/ViZDoom/tree/master/examples/python/basic.py),
 - [examples/python/delta_buttons.py](https://github.com/Farama-Foundation/ViZDoom/tree/master/examples/python/delta_buttons.py),
 - [GitHub issue: Angle changes by executing certain commands](https://github.com/Farama-Foundation/ViZDoom/issues/182).
@@ -277,6 +277,6 @@ Enum type that defines all supported sampling rates for **audioBuffer** in **Sta
 - **SR_44100**
 
 See also:
-- [`DoomGame::setAudioSamplingRate`](./doomGame.md#setaudiosamplingrate).
+- [`DoomGame::setAudioSamplingRate`](./doom_game.md#setaudiosamplingrate).
 
 Note: added in 1.1.9.

@@ -1,6 +1,7 @@
 /*
  Copyright (C) 2016 by Wojciech Jaśkowski, Michał Kempka, Grzegorz Runc, Jakub Toczek, Marek Wydmuch
  Copyright (C) 2017 - 2022 by Marek Wydmuch, Michał Kempka, Wojciech Jaśkowski, and the respective contributors
+ Copyright (C) 2023 - 2025 by Marek Wydmuch, Farama Foundation, and the respective contributors
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -565,23 +566,23 @@ namespace vizdoom {
                     this->game->setSeed(stringToUint(val));
                     continue;
                 }
-                if (key == "episode_timeout" || key == "episodetimeout") {
+                else if (key == "episode_timeout" || key == "episodetimeout") {
                     this->game->setEpisodeTimeout(stringToUint(val));
                     continue;
                 }
-                if (key == "episode_start_time" || key == "episodestarttime") {
+                else if (key == "episode_start_time" || key == "episodestarttime") {
                     this->game->setEpisodeStartTime(stringToUint(val));
                     continue;
                 }
-                if (key == "doom_skill" || key == "doomskill") {
+                else if (key == "doom_skill" || key == "doomskill") {
                     this->game->setDoomSkill(stringToUint(val));
                     continue;
                 }
-                if (key == "ticrate") {
+                else if (key == "ticrate") {
                     this->game->setTicrate(stringToUint(val));
                     continue;
                 }
-                if (key == "audio_buffer_size" || key == "audiobuffersize") {
+                else if (key == "audio_buffer_size" || key == "audiobuffersize") {
                     this->game->setAudioBufferSize(stringToUint(val));
                     continue;
                 }
@@ -601,8 +602,64 @@ namespace vizdoom {
                     this->game->setLivingReward(b::lexical_cast<double>(val));
                     continue;
                 }
-                if (key == "death_penalty" || key == "deathpenalty") {
+                else if (key == "death_penalty" || key == "deathpenalty") {
                     this->game->setDeathPenalty(b::lexical_cast<double>(val));
+                    continue;
+                }
+                else if (key == "death_reward" || key == "deathreward") {
+                    this->game->setDeathReward(b::lexical_cast<double>(val));
+                    continue;
+                }
+                else if (key == "map_exit_reward" || key == "mapexitreward") {
+                    this->game->setMapExitReward(b::lexical_cast<double>(val));
+                    continue;
+                }
+                else if (key == "kill_reward" || key == "killreward") {
+                    this->game->setKillReward(b::lexical_cast<double>(val));
+                    continue;
+                }
+                else if (key == "item_reward" || key == "itemreward") {
+                    this->game->setItemReward(b::lexical_cast<double>(val));
+                    continue;
+                }
+                else if (key == "secret_reward" || key == "secretreward") {
+                    this->game->setSecretReward(b::lexical_cast<double>(val));
+                    continue;
+                }
+                else if (key == "frag_reward" || key == "fragreward") {
+                    this->game->setFragReward(b::lexical_cast<double>(val));
+                    continue;
+                }
+                else if (key == "hit_reward" || key == "hitreward") {
+                    this->game->setHitReward(b::lexical_cast<double>(val));
+                    continue;
+                }
+                else if (key == "hit_taken_penalty" || key == "hittakenpenalty") {
+                    this->game->setHitTakenPenalty(b::lexical_cast<double>(val));
+                    continue;
+                }
+                else if (key == "hit_taken_reward" || key == "hittakenreward") {
+                    this->game->setHitTakenReward(b::lexical_cast<double>(val));
+                    continue;
+                }
+                else if (key == "damage_made_reward" || key == "damagemadereward") {
+                    this->game->setDamageMadeReward(b::lexical_cast<double>(val));
+                    continue;
+                }
+                else if (key == "damage_taken_penalty" || key == "damagetakenpenalty") {
+                    this->game->setDamageTakenPenalty(b::lexical_cast<double>(val));
+                    continue;
+                }
+                else if (key == "damage_taken_reward" || key == "damagetakenreward") {
+                    this->game->setDamageTakenReward(b::lexical_cast<double>(val));
+                    continue;
+                }
+                else if (key == "health_reward" || key == "healthreward") {
+                    this->game->setHealthReward(b::lexical_cast<double>(val));
+                    continue;
+                }
+                else if (key == "armor_reward" || key == "armorreward") {
+                    this->game->setArmorReward(b::lexical_cast<double>(val));
                     continue;
                 }
             }
@@ -619,19 +676,19 @@ namespace vizdoom {
                 this->game->setDoomMap(val);
                 continue;
             }
-            if (key == "vizdoom_path" || key == "vizdoompath") {
+            else if (key == "vizdoom_path" || key == "vizdoompath") {
                 this->game->setViZDoomPath(relativePath(originalVal, this->filePath));
                 continue;
             }
-            if (key == "doom_game_path" || key == "doomgamepath") {
+            else if (key == "doom_game_path" || key == "doomgamepath") {
                 this->game->setDoomGamePath(relativePath(originalVal, this->filePath));
                 continue;
             }
-            if (key == "doom_scenario_path" || key == "doomscenariopath") {
+            else if (key == "doom_scenario_path" || key == "doomscenariopath") {
                 this->game->setDoomScenarioPath(relativePath(originalVal, this->filePath));
                 continue;
             }
-            if (key == "doom_config_path" || key == "doomconfigpath") {
+            else if (key == "doom_config_path" || key == "doomconfigpath") {
                 this->game->setDoomConfigPath(relativePath(originalVal, this->filePath));
                 continue;
             }
@@ -642,87 +699,87 @@ namespace vizdoom {
                     this->game->setDepthBufferEnabled(stringToBool(val));
                     continue;
                 }
-                if (key == "labels_buffer_enabled" || key == "labelsbufferenabled") {
+                else if (key == "labels_buffer_enabled" || key == "labelsbufferenabled") {
                     this->game->setLabelsBufferEnabled(stringToBool(val));
                     continue;
                 }
-                if (key == "automap_buffer_enabled" || key == "automapbufferenabled") {
+                else if (key == "automap_buffer_enabled" || key == "automapbufferenabled") {
                     this->game->setAutomapBufferEnabled(stringToBool(val));
                     continue;
                 }
-                if (key == "automap_rotate" || key == "automaprotate") {
+                else if (key == "automap_rotate" || key == "automaprotate") {
                     this->game->setAutomapRotate(stringToBool(val));
                     continue;
                 }
-                if (key == "automap_render_textures" || key == "automaprendertextures") {
+                else if (key == "automap_render_textures" || key == "automaprendertextures") {
                     this->game->setAutomapRenderTextures(stringToBool(val));
                     continue;
                 }
-                if (key == "objects_info_enabled" || key == "objectsinfoenabled") {
+                else if (key == "objects_info_enabled" || key == "objectsinfoenabled") {
                     this->game->setObjectsInfoEnabled(stringToBool(val));
                     continue;
                 }
-                if (key == "sectors_info_enabled" || key == "sectorsinfoenabled") {
+                else if (key == "sectors_info_enabled" || key == "sectorsinfoenabled") {
                     this->game->setSectorsInfoEnabled(stringToBool(val));
                     continue;
                 }
-                if (key == "render_hud" || key == "renderhud") {
+                else if (key == "render_hud" || key == "renderhud") {
                     this->game->setRenderHud(stringToBool(val));
                     continue;
                 }
-                if (key == "render_minimal_hud" || key == "renderminimalhud") {
+                else if (key == "render_minimal_hud" || key == "renderminimalhud") {
                     this->game->setRenderMinimalHud(stringToBool(val));
                     continue;
                 }
-                if (key == "render_weapon" || key == "renderweapon") {
+                else if (key == "render_weapon" || key == "renderweapon") {
                     this->game->setRenderWeapon(stringToBool(val));
                     continue;
                 }
-                if (key == "render_crosshair" || key == "rendercrosshair") {
+                else if (key == "render_crosshair" || key == "rendercrosshair") {
                     this->game->setRenderCrosshair(stringToBool(val));
                     continue;
                 }
-                if (key == "render_decals" || key == "renderdecals") {
+                else if (key == "render_decals" || key == "renderdecals") {
                     this->game->setRenderDecals(stringToBool(val));
                     continue;
                 }
-                if (key == "render_particles" || key == "renderparticles") {
+                else if (key == "render_particles" || key == "renderparticles") {
                     this->game->setRenderParticles(stringToBool(val));
                     continue;
                 }
-                if (key == "render_effects_sprites" || key == "rendereffectssprites") {
+                else if (key == "render_effects_sprites" || key == "rendereffectssprites") {
                     this->game->setRenderEffectsSprites(stringToBool(val));
                     continue;
                 }
-                if (key == "render_messages" || key == "rendermessages") {
+                else if (key == "render_messages" || key == "rendermessages") {
                     this->game->setRenderMessages(stringToBool(val));
                     continue;
                 }
-                if (key == "render_corpses" || key == "rendercorpses") {
+                else if (key == "render_corpses" || key == "rendercorpses") {
                     this->game->setRenderCorpses(stringToBool(val));
                     continue;
                 }
-                if (key == "render_screen_flashes" || key == "renderscreenflashes") {
+                else if (key == "render_screen_flashes" || key == "renderscreenflashes") {
                     this->game->setRenderScreenFlashes(stringToBool(val));
                     continue;
                 }
-                if (key == "render_all_frames" || key == "renderallframes") {
+                else if (key == "render_all_frames" || key == "renderallframes") {
                     this->game->setRenderAllFrames(stringToBool(val));
                     continue;
                 }
-                if (key == "window_visible" || key == "windowvisible") {
+                else if (key == "window_visible" || key == "windowvisible") {
                     this->game->setWindowVisible(stringToBool(val));
                     continue;
                 }
-                if (key == "console_enabled" || key == "consoleenabled") {
+                else if (key == "console_enabled" || key == "consoleenabled") {
                     this->game->setConsoleEnabled(stringToBool(val));
                     continue;
                 }
-                if (key == "sound_enabled" || key == "soundenabled") {
+                else if (key == "sound_enabled" || key == "soundenabled") {
                     this->game->setSoundEnabled(stringToBool(val));
                     continue;
                 }
-                if (key == "audio_buffer_enabled" || key == "audiobufferenabled") {
+                else if (key == "audio_buffer_enabled" || key == "audiobufferenabled") {
                     this->game->setAudioBufferEnabled(stringToBool(val));
                     continue;
                 }
@@ -744,21 +801,21 @@ namespace vizdoom {
                     this->game->setMode(PLAYER);
                     continue;
                 }
-                if (val == "spectator") {
+                else if (val == "spectator") {
                     this->game->setMode(SPECTATOR);
                     continue;
                 }
-                if (val == "async_player") {
+                else if (val == "async_player") {
                     this->game->setMode(ASYNC_PLAYER);
                     continue;
                 }
-                if (val == "async_spectator") {
+                else if (val == "async_spectator") {
                     this->game->setMode(ASYNC_SPECTATOR);
                     continue;
                 }
 
                 std::cerr << "WARNING! Loading config from: \"" << filePath <<
-                          "\". (ASYNC_)SPECTATOR || PLAYER expected instead of: " << rawVal << " in line #"
+                          "\". (ASYNC_)SPECTATOR || (ASYNC_)PLAYER expected instead of: " << rawVal << " in line #"
                           << lineNumber <<
                           ". Line ignored.\n";
 
@@ -771,15 +828,15 @@ namespace vizdoom {
                     this->game->setAutomapMode(NORMAL);
                     continue;
                 }
-                if (val == "whole") {
+                else if (val == "whole") {
                     this->game->setAutomapMode(WHOLE);
                     continue;
                 }
-                if (val == "objects") {
+                else if (val == "objects") {
                     this->game->setAutomapMode(OBJECTS);
                     continue;
                 }
-                if (val == "objects_with_size") {
+                else if (val == "objects_with_size") {
                     this->game->setAutomapMode(OBJECTS_WITH_SIZE);
                     continue;
                 }
@@ -797,15 +854,15 @@ namespace vizdoom {
                     this->game->setScreenResolution(stringToResolution(val));
                     continue;
                 }
-                if (key == "screen_format" || key == "screenformat") {
+                else if (key == "screen_format" || key == "screenformat") {
                     this->game->setScreenFormat(stringToFormat(val));
                     continue;
                 }
-                if (key == "audio_sampling_rate" || key == "audiosamplingrate") {
+                else if (key == "audio_sampling_rate" || key == "audiosamplingrate") {
                     this->game->setAudioSamplingRate(stringToSamplingRate(val));
                     continue;
                 }
-                if (key == "button_max_value" || key == "buttonmaxvalue") {
+                else if (key == "button_max_value" || key == "buttonmaxvalue") {
                     size_t space = val.find_first_of(' ');
 
                     if (space == std::string::npos) throw std::exception();

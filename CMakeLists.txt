@@ -3,8 +3,9 @@ cmake_minimum_required(VERSION 3.12)
 # Project + versions
 #-----------------------------------------------------------------------------------------------------------------------
 
-project(ViZDoom VERSION 1.2.4)
-set(ViZDoom_VERSION_STR ${ViZDoom_VERSION_MAJOR}.${ViZDoom_VERSION_MINOR}.${ViZDoom_VERSION_PATCH})
+project(ViZDoom VERSION 1.3.0)
+set(ViZDoom_VERSION_SUFFIX ".dev2")
+set(ViZDoom_VERSION_STR ${ViZDoom_VERSION_MAJOR}.${ViZDoom_VERSION_MINOR}.${ViZDoom_VERSION_PATCH}${ViZDoom_VERSION_SUFFIX})
 set(ViZDoom_VERSION_ID ${ViZDoom_VERSION_MAJOR}${ViZDoom_VERSION_MINOR}${ViZDoom_VERSION_PATCH})
 
 
@@ -13,6 +14,7 @@ set(ViZDoom_VERSION_ID ${ViZDoom_VERSION_MAJOR}${ViZDoom_VERSION_MINOR}${ViZDoom
 
 option(BUILD_PYTHON "Build ViZDoom Python (3) binding/module" ON)
 option(BUILD_ENGINE "Build ViZDoom Engine (required to build Python package)" ON)
+option(CREATE_PYTHON_STUBS "Build ViZDoom Python (3) .pyi type stubs" OFF)
 
 
 # CMake options
@@ -20,8 +22,20 @@ option(BUILD_ENGINE "Build ViZDoom Engine (required to build Python package)" ON
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_LINK)
-if(COMMAND cmake_policy)
+
+if(POLICY CMP0003)
     cmake_policy(SET CMP0003 NEW)
+endif()
+
+if(POLICY CMP0167)
+  find_package(Boost 1.70 QUIET CONFIG)
+  if(Boost_FOUND)
+    cmake_policy(SET CMP0167 NEW)
+  else()
+    cmake_policy(SET CMP0167 OLD)
+  endif()
+  unset(Boost_FOUND CACHE)
+  unset(Boost_DIR CACHE)
 endif()
 
 # Add cmake_modules to module
@@ -38,16 +52,17 @@ endif()
 # System dependent settings
 #-----------------------------------------------------------------------------------------------------------------------
 
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_STATIC_RUNTIME OFF)
+
 if(UNIX)
+    message(STATUS "Unix-like system detected, setting up Unix specific options")
     set(Boost_USE_STATIC_LIBS OFF)
-    set(Boost_USE_MULTITHREADED ON)
-    set(Boost_USE_STATIC_RUNTIME OFF)
 endif()
 
 if(WIN32)
+    message(STATUS "Windows detected, setting up Windows specific options")
     set(Boost_USE_STATIC_LIBS ON)
-    set(Boost_USE_MULTITHREADED ON)
-    set(Boost_USE_STATIC_RUNTIME ON)
 
     macro(get_WIN32_WINNT version)
         if(WIN32 AND CMAKE_SYSTEM_VERSION)
@@ -66,8 +81,20 @@ if(WIN32)
 endif()
 
 if(APPLE)
+    message(STATUS "macOS detected, setting up macOS specific options")
     set(CMAKE_MACOSX_RPATH ON)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden -fvisibility-inlines-hidden")
+
+    if(CMAKE_APPLE_SILICON_PROCESSOR MATCHES "")
+        message(STATUS "CMAKE_APPLE_SILICON_PROCESSOR not set")
+        if(CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "arm64")
+            set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE INTERNAL "" FORCE)
+            message(STATUS "Apple Silicon detected, building for arm64")
+        else()
+            set(CMAKE_OSX_ARCHITECTURES "x86_64" CACHE INTERNAL "" FORCE)
+            message(STATUS "Intel CPU detected, building for x86_64")
+        endif()
+    endif()
 endif(APPLE)
 
 
@@ -81,18 +108,11 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-class-memaccess -Wno-deprecated-copy") # C++ only
 endif()
 
-if(MSVC)
-    string(REPLACE "/MD " "/MT " CMAKE_CXX_FLAGS_RELEASE ${CMAKE_CXX_FLAGS_RELEASE})
-    string(REPLACE "/MD " "/MT " CMAKE_CXX_FLAGS_MINSIZEREL ${CMAKE_CXX_FLAGS_MINSIZEREL})
-    string(REPLACE "/MD " "/MT " CMAKE_CXX_FLAGS_RELWITHDEBINFO ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
-    string(REPLACE "/MDd " "/MTd " CMAKE_CXX_FLAGS_DEBUG ${CMAKE_CXX_FLAGS_DEBUG})
-endif()
-
-
 # Main library
 #-----------------------------------------------------------------------------------------------------------------------
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(VIZDOOM_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(VIZDOOM_OUTPUT_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY})
 set(VIZDOOM_SCRIPTS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/scripts)
 set(VIZDOOM_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)

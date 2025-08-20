@@ -24,7 +24,7 @@
 #ifndef __VIZ_VERSION_H__
 #define __VIZ_VERSION_H__
 
-#define VIZ_VERSION                 @ViZDoom_VERSION_ID@
-#define VIZ_VERSION_STR             "@ViZDoom_VERSION_STR@"
+#define VIZ_VERSION @ViZDoom_VERSION_ID@
+#define VIZ_VERSION_STR "@ViZDoom_VERSION_STR@"
 
 #endif

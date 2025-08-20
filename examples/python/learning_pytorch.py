@@ -345,7 +345,9 @@ if __name__ == "__main__":
     for _ in range(episodes_to_watch):
         game.new_episode()
         while not game.is_episode_finished():
-            state = preprocess(game.get_state().screen_buffer)
+            game_state = game.get_state()
+            assert game_state is not None
+            state = preprocess(game_state.screen_buffer)
             best_action_index = agent.get_action(state)
 
             # Instead of make_action(a, frame_repeat) in order to make the animation smooth

@@ -26,6 +26,8 @@
 
 #include "ViZDoomConsts.h"
 #include "ViZDoomTypes.h"
+#include <vector>
+#include <string>
 
 namespace vizdoom {
 
@@ -67,6 +69,11 @@ namespace vizdoom {
 
     bool isBinaryButton(Button button);
     bool isDeltaButton(Button button);
+
+    /* Category helpers */
+    /*----------------------------------------------------------------------------------------------------------------*/
+
+    std::vector<std::string> getDefaultCategories();
 
 }
 

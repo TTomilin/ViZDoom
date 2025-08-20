@@ -89,3 +89,17 @@ Returns true if [`Button`](./enums.md#button) is binary button.
 | Python | `is_delta_button(button: Button) -> bool` |
 
 Returns true if [`Button`](./enums.md#button) is delta button.
+
+
+## Category functions
+
+---
+### `getDefaultCategories`
+
+| C++    | `std::vector<std::string> getDefaultCategories()` |
+| :--    | :--                                                                                            |
+| Python | `get_default_categories() -> list[str]`                                         |
+
+Returns the default object categories of ViZDoom.
+
+Note: added in 1.3.0.

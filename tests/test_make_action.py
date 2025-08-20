@@ -166,12 +166,18 @@ def test_advance_action():
     game.advance_action()
 
     # advance_action() with update_state argument set to False
-    prev_tic = game.get_state().tic
+    state = game.get_state()
+    assert state is not None
+    prev_tic = state.tic
     tics_to_advance = 10
     game.advance_action(tics_to_advance, update_state=False)
-    assert game.get_state().tic == prev_tic
+    state = game.get_state()
+    assert state is not None
+    assert state.tic == prev_tic
     game.advance_action()
-    assert game.get_state().tic == prev_tic + tics_to_advance + 1
+    state = game.get_state()
+    assert state is not None
+    assert state.tic == prev_tic + tics_to_advance + 1
 
 
 if __name__ == "__main__":

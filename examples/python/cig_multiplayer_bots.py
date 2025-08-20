@@ -71,6 +71,7 @@ for i in range(episodes):
 
         # Get the state.
         state = game.get_state()
+        assert state is not None
 
         # Analyze the state.
 
@@ -92,6 +93,7 @@ for i in range(episodes):
 
     print("Results:")
     server_state = game.get_server_state()
+    assert server_state is not None
     for i in range(len(server_state.players_in_game)):
         if server_state.players_in_game[i]:
             print(f"{server_state.players_names[i]}: {server_state.players_frags[i]}")

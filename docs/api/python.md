@@ -9,8 +9,8 @@ There are many examples of how to use Python API in [examples/python](https://gi
 :hidden:
 :caption: Python API
 
-python/doomGame
-python/gameState
+python/doom_game
+python/game_state
 python/enums
 python/utils
 python/exceptions

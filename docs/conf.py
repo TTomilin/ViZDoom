@@ -22,7 +22,7 @@ from vizdoom import *  # noqa
 
 
 project = "ViZDoom"
-copyright = "2023 Farama Foundation"
+copyright = "2025 Farama Foundation"
 author = "Farama Foundation"
 
 # The full version, including alpha/beta/rc tags

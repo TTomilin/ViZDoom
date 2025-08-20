@@ -92,6 +92,7 @@ def player_host(p):
                 episode_start_time = time()
 
             state = game.get_state()
+            assert state is not None
             print("Player0:", state.number, action_count, game.get_episode_time())
 
             player_action(game, player_sleep_time, actions, player_skip)
@@ -136,6 +137,7 @@ def player_join(p):
 
         while not game.is_episode_finished():
             state = game.get_state()
+            assert state is not None
             print(
                 f"Player{p}:",
                 state.number,

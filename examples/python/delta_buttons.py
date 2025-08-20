@@ -47,6 +47,7 @@ if __name__ == "__main__":
         while not game.is_episode_finished():
 
             state = game.get_state()
+            assert state is not None
             reward = game.make_action(action)
 
             time = game.get_episode_time()

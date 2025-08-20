@@ -1,3 +1,13 @@
+"""
+Implementation of the base Gymnasium environment for ViZDoom.
+
+The first version was based on Gym interface by [Simon Hakenes](https://github.com/shakenes/vizdoomgym),
+and developed by [Arjun KG](https://github.com/arjun-kg),
+[Benjamin Noah Beal](https://github.com/bebeal),
+[Lawrence Francis](https://github.com/ldfrancis),
+and [Mark Towers](https://github.com/pseudo-rnd-thoughts).
+"""
+
 import itertools
 import warnings
 from typing import Optional
@@ -27,17 +37,19 @@ class VizdoomEnv(gym.Env, EzPickle):
 
     def __init__(
         self,
-        level,
-        frame_skip=1,
-        max_buttons_pressed=1,
+        config_file: str,
+        frame_skip: int = 1,
+        max_buttons_pressed: int = 0,
         render_mode: Optional[str] = None,
+        treat_episode_timeout_as_truncation: bool = True,
+        use_multi_binary_action_space: bool = True,
     ):
         """
-        Base class for Gymnasium interface for ViZDoom. Thanks to https://github.com/shakenes/vizdoomgym
-        Child classes are defined in gym_env_defns.py,
+        Base class for Gymnasium interface for ViZDoom.
+        Child classes are defined in gymnasium_env_defns.py,
 
         Arguments:
-            level (str): The path to the config file to load. Most settings should be set by this config file.
+            config_file (str): The path to the config file to load. Most settings should be set by this config file.
             frame_skip (int): The number of frames the will be advanced per action. 1 = take action on every frame. Default: 1.
             max_buttons_pressed (int): Defines the number of binary buttons that can be selected at once. Default: 1.
                                        Should be >= 0. If < 0 a RuntimeError is raised.
@@ -48,6 +60,14 @@ class VizdoomEnv(gym.Env, EzPickle):
                                        ``n`` is equal to number of possible buttons combinations
                                        with the number of buttons pressed < ``max_buttons_pressed``.
             render_mode(Optional[str]): The render mode to use could be either "human" or "rgb_array"
+            treat_episode_timeout_as_truncation (bool): If True, the episode will be treated as truncated
+                                                        when the internal episode timeout is reached.
+                                                        This is compatibility option, ViZDoom versions <1.3.0 behave as if this was set to False.
+                                                        Default: True.
+            use_multi_binary_action_space (bool): If True, the ``MultiBinary(len(num_binary_buttons))`` action space
+                                                    will be used for buttons binary buttons instead of ``MultiDiscrete([2] * len(num_binary_buttons))``.
+                                                    This is compatibility option, ViZDoom versions <1.3.0 behave as if this was set to False.
+                                                    Default: True.
 
         This environment forces the game window to be hidden. Use :meth:`render` function to see the game.
 
@@ -63,17 +83,22 @@ class VizdoomEnv(gym.Env, EzPickle):
 
         Action space can be a single one of binary/continuous action space, or a ``Dict`` containing both:
 
-        - "binary": Is ``MultiDiscrete([2] * num_binary_buttons)`` if :attr:`max_buttons_pressed` == 0
-          or ``Discrete(num_binary_buttons + 1)`` if :attr:`max_buttons_pressed` >= 1.
+        - "binary": Is ``Discrete(num_binary_buttons + 1)`` if :attr:`max_buttons_pressed` >= 1
+          or ``MultiBinary(len(num_binary_buttons))`` if :attr:`max_buttons_pressed` == 0 and :attr:`use_multi_binary_action_space` is True,
+          or ``MultiDiscrete([2] * num_binary_buttons)`` if :attr:`max_buttons_pressed` == 0 and :attr:`use_multi_binary_action_space` is False,
         - "continuous": Is ``Box(float32.min, float32.max, (num_delta_buttons,), float32)``.
         """
-        EzPickle.__init__(self, level, frame_skip, max_buttons_pressed, render_mode)
+        EzPickle.__init__(
+            self, config_file, frame_skip, max_buttons_pressed, render_mode
+        )
         self.frame_skip = frame_skip
         self.render_mode = render_mode
+        self.treat_episode_timeout_as_truncation = treat_episode_timeout_as_truncation
+        self.use_multi_binary_action_space = use_multi_binary_action_space
 
         # init game
         self.game = vzd.DoomGame()
-        self.game.load_config(level)
+        self.game.load_config(config_file)
         self.game.set_window_visible(False)
 
         screen_format = self.game.get_screen_format()
@@ -134,7 +159,11 @@ class VizdoomEnv(gym.Env, EzPickle):
         reward = self.game.make_action(env_action, self.frame_skip)
         self.state = self.game.get_state()
         terminated = self.game.is_episode_finished()
-        truncated = False  # Truncation to be handled by the TimeLimit wrapper
+        truncated = (
+            self.game.is_episode_timeout_reached()
+            if self.treat_episode_timeout_as_truncation
+            else False
+        )
         if self.render_mode == "human":
             self.render()
         return self.__collect_observations(), reward, terminated, truncated, {}
@@ -175,8 +204,11 @@ class VizdoomEnv(gym.Env, EzPickle):
         options: Optional[dict] = None,
     ):
         super().reset(seed=seed)
-        if seed is not None:
-            self.game.set_seed(seed)
+        # Ensure DoomGame is always seeded with an unsigned int from gymnasium.Env's internal RNG
+        game_seed = int(
+            self.np_random.integers(0, np.iinfo(np.uint32).max + 1, dtype=np.uint32)
+        )
+        self.game.set_seed(game_seed)
         self.game.new_episode()
         self.state = self.game.get_state()
 
@@ -187,17 +219,17 @@ class VizdoomEnv(gym.Env, EzPickle):
         if self.state is not None:
             observation["screen"] = self.state.screen_buffer
             if self.channels == 1:
-                observation["screen"] = self.state.screen_buffer[..., None]
+                observation["screen"] = self.state.screen_buffer[..., None]  # type: ignore
             if self.depth:
-                observation["depth"] = self.state.depth_buffer[..., None]
+                observation["depth"] = self.state.depth_buffer[..., None]  # type: ignore
             if self.labels:
-                observation["labels"] = self.state.labels_buffer[..., None]
+                observation["labels"] = self.state.labels_buffer[..., None]  # type: ignore
             if self.automap:
                 observation["automap"] = self.state.automap_buffer
                 if self.channels == 1:
-                    observation["automap"] = self.state.automap_buffer[..., None]
+                    observation["automap"] = self.state.automap_buffer[..., None]  # type: ignore
             if self.num_game_variables > 0:
-                observation["gamevariables"] = self.state.game_variables.astype(
+                observation["gamevariables"] = self.state.game_variables.astype(  # type: ignore
                     np.float32
                 )
         else:
@@ -235,7 +267,7 @@ class VizdoomEnv(gym.Env, EzPickle):
 
         if self.depth:
             image_list.append(
-                np.repeat(game_state.depth_buffer[..., None], repeats=3, axis=2)
+                np.repeat(game_state.depth_buffer[..., None], repeats=3, axis=2)  # type: ignore
             )
 
         if self.labels:
@@ -252,7 +284,7 @@ class VizdoomEnv(gym.Env, EzPickle):
         if self.automap:
             automap_buffer = game_state.automap_buffer
             if self.channels == 1:
-                automap_buffer = np.repeat(automap_buffer[..., None], repeats=3, axis=2)
+                automap_buffer = np.repeat(automap_buffer[..., None], repeats=3, axis=2)  # type: ignore
             image_list.append(automap_buffer)
 
         return np.concatenate(image_list, axis=1)
@@ -309,15 +341,20 @@ class VizdoomEnv(gym.Env, EzPickle):
 
     def __get_binary_action_space(self):
         """
-        Return binary action space: either ``Discrete(n)``/``MultiDiscrete([2] * num_binary_buttons)``
+        Return binary action space:
+        ``Discrete(n)`` or ``MultiBinary(num_binary_buttons)`` or ``MultiDiscrete([2] * num_binary_buttons)``
         """
         if self.max_buttons_pressed == 0:
-            button_space = gym.spaces.MultiDiscrete(
-                [
-                    2,
-                ]
-                * self.num_binary_buttons
-            )
+            if self.use_multi_binary_action_space:
+                button_space = gym.spaces.MultiBinary(self.num_binary_buttons)
+            else:
+                button_space = gym.spaces.MultiDiscrete(
+                    [
+                        2,
+                    ]
+                    * self.num_binary_buttons
+                )
+
         else:
             self.button_map = [
                 np.array(list(action))
@@ -342,9 +379,9 @@ class VizdoomEnv(gym.Env, EzPickle):
         """
         Returns action space:
             if both binary and delta buttons defined in the config file, action space will be:
-              ``Dict("binary": MultiDiscrete|Discrete, "continuous", Box)``
+              ``Dict("binary": Discrete|MultiBinary|MultiDiscrete, "continuous", Box)``
             else:
-              action space will be only one of the following ``MultiDiscrete``|``Discrete``|``Box``
+              action space will be only one of the following ``Discrete``|``MultiBinary``|``MultiDiscrete``|``Box``
         """
         if self.num_delta_buttons == 0:
             return self.__get_binary_action_space()

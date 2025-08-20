@@ -178,22 +178,21 @@ else( WIN32 )
 		add_definitions( -DNO_GTK=1 )
 	endif( NO_GTK )
 
-	# Non-Windows version also needs SDL except native OS X backend
-	if( NOT WIN32 )
-		find_package( SDL2 REQUIRED )
-		include_directories( "${SDL2_INCLUDE_DIR}" )
-		set( ZDOOM_LIBS ${ZDOOM_LIBS} "${SDL2_LIBRARY}" )
-	endif( NOT WIN32 )
+	# Non-Windows version needs SDL2
+	find_package( SDL2 REQUIRED )
+	include_directories( "${SDL2_INCLUDE_DIR}" )
+	set( ZDOOM_LIBS ${ZDOOM_LIBS} "${SDL2_LIBRARY}" )
 endif( WIN32 )
 
 
 if( NOT NO_OPENAL )
-    find_package( OpenAL )
+    find_package( OpenAL REQUIRED )
 	mark_as_advanced(CLEAR OPENAL_INCLUDE_DIR)
     if( OPENAL_INCLUDE_DIR )
+		message( STATUS "OpenAL include files found at ${OPENAL_INCLUDE_DIR}" )
         include_directories( ${OPENAL_INCLUDE_DIR} )
-    else( OPENAL_INCLUDE_DIR )
-		set( NO_OPENAL ON )
+	else ( OPENAL_INCLUDE_DIR )
+		message( STATUS "Could not find OpenAL include files" )
     endif( OPENAL_INCLUDE_DIR )
 endif( NOT NO_OPENAL )
 
@@ -263,11 +262,9 @@ if( NO_OPENAL )
 	set(SNDFILE_FOUND NO)
 else( NO_OPENAL )
 	# Search for libSndFile
-
 	find_package( SndFile )
 
 	# Search for libmpg123
-
 	find_package( MPG123 )
 endif( NO_OPENAL )
 

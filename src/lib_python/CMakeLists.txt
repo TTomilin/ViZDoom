@@ -8,11 +8,10 @@ if("${BUILD_PYTHON_VERSION}" STREQUAL "")
 endif()
 
 set(PYBIND11_PYTHON_VERSION ${BUILD_PYTHON_VERSION})
-if(WIN32)
-    set(PYBIND11_FINDPYTHON True)
-endif()
+set(PYBIND11_FINDPYTHON True)
 
 set(VIZDOOM_PYTHON_OUTPUT_DIR ${VIZDOOM_OUTPUT_DIR}/python${BUILD_PYTHON_VERSION})
+set(VIZDOOM_PYTHON_PACKAGE_DIR ${VIZDOOM_PYTHON_OUTPUT_DIR}/vizdoom)
 set(VIZDOOM_PYTHON_SRC_DIR ${VIZDOOM_SRC_DIR}/lib_python)
 set(VIZDOOM_PYTHON_INCLUDE_DIR ${VIZDOOM_INCLUDE_DIR} ${VIZDOOM_PYTHON_SRC_DIR})
 
@@ -70,19 +69,48 @@ set_target_properties(libvizdoom_python
     OUTPUT_NAME vizdoom
     PROJECT_LABEL "python${BUILD_PYTHON_VERSION} binding")
 
-if(UNIX)
-    add_custom_target(python_pip_package ALL
-        COMMAND ${VIZDOOM_SCRIPTS_DIR}/assemble_pip_package.sh ${BUILD_PYTHON_VERSION} ${VIZDOOM_OUTPUT_DIR} ${CMAKE_SOURCE_DIR}
-        COMMENT "Assembling pip package in ${VIZDOOM_PYTHON_OUTPUT_DIR}/vizdoom")
-elseif(WIN32)
-    add_custom_target(python_pip_package ALL
-        COMMAND ${VIZDOOM_SCRIPTS_DIR}/assemble_pip_package.bat ${BUILD_PYTHON_VERSION} ${VIZDOOM_OUTPUT_DIR} ${CMAKE_SOURCE_DIR}
-        COMMENT "Assembling pip package in ${VIZDOOM_PYTHON_OUTPUT_DIR}/vizdoom")
+add_custom_target(assemble_package ALL
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${VIZDOOM_PYTHON_PACKAGE_DIR}
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:libvizdoom_python> ${VIZDOOM_PYTHON_PACKAGE_DIR}
+    COMMAND ${CMAKE_COMMAND} -E copy ${VIZDOOM_PYTHON_SRC_DIR}/__init__.py ${VIZDOOM_PYTHON_PACKAGE_DIR}
+    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:vizdoom> ${VIZDOOM_PYTHON_PACKAGE_DIR}
+    COMMAND ${CMAKE_COMMAND} -E copy ${VIZDOOM_OUTPUT_DIR}/vizdoom.pk3 ${VIZDOOM_PYTHON_PACKAGE_DIR}
+    COMMAND ${CMAKE_COMMAND} -E copy ${VIZDOOM_SRC_DIR}/bots.cfg ${VIZDOOM_PYTHON_PACKAGE_DIR}
+    COMMAND ${CMAKE_COMMAND} -E copy ${VIZDOOM_SRC_DIR}/freedoom1.wad ${VIZDOOM_PYTHON_PACKAGE_DIR}
+    COMMAND ${CMAKE_COMMAND} -E copy ${VIZDOOM_SRC_DIR}/freedoom2.wad ${VIZDOOM_PYTHON_PACKAGE_DIR}
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${VIZDOOM_ROOT_DIR}/scenarios ${VIZDOOM_PYTHON_PACKAGE_DIR}/scenarios
+    COMMAND ${CMAKE_COMMAND} -E copy_directory ${VIZDOOM_ROOT_DIR}/gymnasium_wrapper ${VIZDOOM_PYTHON_PACKAGE_DIR}/gymnasium_wrapper
+    COMMENT "Assembling Python package in ${VIZDOOM_PYTHON_OUTPUT_DIR}/vizdoom"
+)
+
+if(WIN32) # Copy DLLs for Windows
+    file(GLOB TXT_FILES "${VIZDOOM_OUTPUT_DIR}/*.dll")
+
+    foreach(file ${TXT_FILES})
+        add_custom_command(
+            TARGET assemble_package
+            COMMAND ${CMAKE_COMMAND} -E copy ${file} ${VIZDOOM_PYTHON_PACKAGE_DIR}
+        )
+    endforeach()
 endif()
 
-set_target_properties(python_pip_package
+set_target_properties(assemble_package
     PROPERTIES
-    PROJECT_LABEL "Python module")
+    PROJECT_LABEL "Python package")
 
 # vizdoom, vizdoom.pk3 are needed to assemble the package
-add_dependencies(python_pip_package libvizdoom_python vizdoom pk3)
+add_dependencies(assemble_package libvizdoom_python vizdoom pk3)
+
+# Generate type stubs using pybind11-stubgen and copy vizdoom.pyi & py.typed to the package
+if (CREATE_PYTHON_STUBS)
+    add_custom_command(
+        TARGET assemble_package
+        COMMAND ${Python_EXECUTABLE} ${VIZDOOM_PYTHON_SRC_DIR}/generate_vizdoom_stubs.py --output ${VIZDOOM_PYTHON_SRC_DIR}/vizdoom.pyi --verbose --module ${VIZDOOM_PYTHON_OUTPUT_DIR}/vizdoom
+    )
+endif()
+
+add_custom_command(
+    TARGET assemble_package
+    COMMAND ${CMAKE_COMMAND} -E copy ${VIZDOOM_PYTHON_SRC_DIR}/vizdoom.pyi ${VIZDOOM_PYTHON_PACKAGE_DIR}
+    COMMAND ${CMAKE_COMMAND} -E copy ${VIZDOOM_PYTHON_SRC_DIR}/py.typed ${VIZDOOM_PYTHON_PACKAGE_DIR}
+)

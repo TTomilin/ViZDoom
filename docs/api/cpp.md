@@ -10,8 +10,8 @@ See [examples/cpp](https://github.com/Farama-Foundation/ViZDoom/tree/master/exam
 :hidden:
 :caption: C++ API
 
-cpp/doomGame
-cpp/gameState
+cpp/doom_game
+cpp/game_state
 cpp/enums
 cpp/exceptions
 cpp/utils

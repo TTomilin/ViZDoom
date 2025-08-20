@@ -72,6 +72,7 @@ if __name__ == "__main__":
 
             # Gets the state and possibly to something with it
             state = game.get_state()
+            assert state is not None and state.game_variables is not None
 
             # Makes a random action and save the reward.
             reward = game.make_action(choice(actions))

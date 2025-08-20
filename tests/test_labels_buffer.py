@@ -61,6 +61,7 @@ def test_labels_buffer():
 
     while not game.is_episode_finished():
         state = game.get_state()
+        assert state is not None
         labels_buffer = state.labels_buffer
         game.make_action(choice(actions))
 
