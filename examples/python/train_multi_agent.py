@@ -202,8 +202,7 @@ class VizdoomTask(TaskClass):
         return EnvCreator(_make)
 
     def get_env_fun(self, num_envs: int, continuous_actions: bool, seed: int | None, device=None):
-        make_single = self.env_creator(seed)
-        return make_single if num_envs == 1 else EnvCreator(lambda: ParallelEnv(available_cpu_count(), make_single))
+        return self.env_creator(seed)
 
     def action_spec(self, env: EnvBase) -> Composite:
         return self._action_spec
@@ -366,7 +365,7 @@ def main():
         "train_device": args.train_device,
         "buffer_device": args.buffer_device,
         "share_policy_params": True,
-        "parallel_collection": False,
+        "parallel_collection": True,
         "max_n_frames": int(args.total_steps),
         "lr": args.lr,
 

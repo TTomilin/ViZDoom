@@ -29,8 +29,12 @@ from __future__ import annotations
 
 import math
 import multiprocessing as mp
+import sys
 
 ctx = mp.get_context("spawn")
+import subprocess
+import pickle
+from pathlib import Path
 import time
 
 from pettingzoo import ParallelEnv
@@ -44,183 +48,6 @@ import vizdoom as vzd
 from vizdoom import Mode
 import pygame
 import cv2
-
-
-# ------------------------- child process worker ---------------------------
-
-def _agent_process(
-        *,
-        pipe_end,
-        config_path: str,
-        resolution: str,
-        timeout: int,
-        skip_frames: Optional[int],
-        num_agents: int,
-        agent_idx: int,
-        is_host: bool,
-        host_address: str,
-        port: int,
-        async_mode: bool,
-        netmode: int,
-        ticrate: int,
-        seed: Optional[int],
-        verbose: bool,
-) -> None:
-    game = vzd.DoomGame()
-    game.load_config(config_path)
-
-    # headless
-    game.set_window_visible(False)
-    game.set_sound_enabled(False)
-    game.set_console_enabled(False)
-    game.set_render_hud(True)
-    game.set_screen_resolution(screen_res(resolution))
-    game.set_ticrate(ticrate)
-    game.set_mode(Mode.ASYNC_PLAYER if async_mode else Mode.PLAYER)
-
-    if timeout is not None:
-        game.set_episode_timeout(timeout)
-    if seed is not None:
-        game.set_seed(int(seed))
-
-    if is_host:
-        game.add_game_args(
-            f"-host {num_agents} -port {port} -netmode {netmode} +sv_spawnfarthest 1"
-        )
-        agent = "host"
-    else:
-        game.add_game_args(f"-join {host_address} -port {port} -netmode {netmode}")
-        agent = f"peer{agent_idx}"
-
-    # cosmetics / identity
-    game.add_game_args(f"+name Player{agent_idx} +colorset {agent_idx}")
-    game.add_game_args(f"+playernumber {agent_idx}")
-
-    game.init()
-    game.send_game_command("viz_respawn_delay 0")
-
-    # Get available game variables for mapping indices to names
-    available_game_vars = game.get_available_game_variables()
-
-    steps = 0
-    is_dead = False
-    frames_per_step = skip_frames if skip_frames else 1
-
-    try:
-        while True:
-            cmd, payload = pipe_end.recv()  # blocking, simple
-            if cmd == "reset":
-                game.new_episode()
-                game.respawn_player()
-
-                state = game.get_state()
-                frame = read_frame(state, resolution)
-
-                info = {
-                    "num_frames": frames_per_step,
-                    "player_died": False,
-                    "just_died": False,
-                    "step": steps
-                }
-                info.update(get_flat_game_vars(state, available_game_vars))
-
-                pipe_end.send({
-                    "obs": frame,
-                    "reward": 0.0,
-                    "terminated": False,
-                    "info": info,
-                })
-
-            elif cmd == "step":
-                action = payload  # flat list (delta..., binary...)
-
-                reward = float(game.make_action(action, skip_frames) if skip_frames else game.make_action(action))
-
-                # Check if player died during this step
-                was_dead_before = is_dead
-                is_dead = game.is_player_dead()
-                just_died = not was_dead_before and is_dead
-                truncated = game.is_episode_finished()
-                terminated = game.is_episode_finished()
-
-                if verbose and terminated:
-                    print(f"Player {agent} terminated at step {game.get_episode_time()}")
-
-                state = game.get_state()
-                frame = read_frame(state, resolution)
-
-                info = {
-                    "num_frames": frames_per_step,
-                    "player_died": is_dead,
-                    "just_died": just_died,
-                    "step": steps
-                }
-                info.update(get_flat_game_vars(state, available_game_vars))
-
-                pipe_end.send({
-                    "obs": frame,
-                    "reward": reward,
-                    "terminated": terminated,
-                    "truncated": truncated,
-                    "info": info,
-                })
-                steps += frames_per_step
-
-            elif cmd == "respawn":
-                # Only respawn if the player is actually dead
-                if is_dead:
-                    if verbose:
-                        print(f"Player {agent} respawning at step {game.get_episode_time()}...")
-                    game.respawn_player()
-                    is_dead = False  # Reset death state after respawn
-                    if verbose:
-                        print(f"Player {agent} respawned at step {game.get_episode_time()}")
-                    respawned = True
-                else:
-                    # Player is not dead, perform a no-op action
-                    zero_action = [0.0] * len(game.get_available_buttons())
-                    game.make_action(zero_action)
-                    respawned = False
-
-                # Return observation data like a regular step
-                state = game.get_state()
-                frame = read_frame(state, resolution)
-                terminated = False
-                truncated = game.is_episode_finished()
-
-                info = {
-                    "num_frames": frames_per_step,
-                    "player_died": is_dead,
-                    "just_died": False,  # Can't die during respawn
-                    "step": steps
-                }
-                info.update(get_flat_game_vars(state, available_game_vars))
-
-                pipe_end.send({
-                    "obs": frame,
-                    "reward": 0.0,  # No reward for respawn
-                    "terminated": terminated,
-                    "truncated": truncated,
-                    "info": info,
-                    "respawned": respawned
-                })
-                steps += frames_per_step  # Respawning also counts as a step
-
-            elif cmd == "close":
-                break
-
-            else:
-                # ignore unknown
-                pipe_end.send({"obs": read_frame(), "reward": 0.0, "terminated": False, "info": {}})
-    finally:
-        try:
-            game.close()
-        except Exception:
-            pass
-        try:
-            pipe_end.close()
-        except Exception:
-            pass
 
 
 # -------------------------- main PettingZoo env ---------------------------
@@ -277,35 +104,38 @@ class VizdoomParallelEnv(ParallelEnv):
         self._observation_space = spaces.Box(0, 255, shape=self._obs_shape, dtype=np.uint8)
 
         # Child processes and pipes
-        self._pipes_parent = []
-        self._procs: List[ctx.Process] = []
+        self._pipes: Dict[str, Tuple[Any, Any]] = {}  # agent_name -> (stdin, stdout)
+        self._procs: List[subprocess.Popen] = []
+
+        # Find the absolute path to the worker script
+        worker_path = Path(__file__).parent / "vizdoom_worker.py"
+        if not worker_path.is_file():
+            raise FileNotFoundError(
+                f"The 'vizdoom_worker.py' script was not found. "
+                f"Please ensure it is in the same directory as this file: {worker_path.parent}"
+            )
 
         for i in range(self._num_agents):
-            parent_end, child_end = ctx.Pipe(duplex=True)
-            p = ctx.Process(
-                target=_agent_process,
-                kwargs=dict(
-                    pipe_end=child_end,
-                    config_path=self.config_file,
-                    resolution=self.resolution,
-                    timeout=timeout,
-                    skip_frames=skip_frames,
-                    num_agents=self._num_agents,
-                    agent_idx=i,
-                    is_host=(i == 0),
-                    host_address=self.host_address,
-                    port=self.port,
-                    async_mode=self.async_mode,
-                    netmode=self.netmode,
-                    ticrate=self.ticrate,
-                    seed=(None if seed is None else int(seed) + i),
-                    verbose=verbose,
-                ),
-                daemon=True,
+            agent_name = self.possible_agents[i]
+
+            # 1. Package all arguments for the worker process
+            worker_kwargs = dict(
+                config_path=self.config_file, resolution=self.resolution, timeout=timeout, skip_frames=skip_frames,
+                num_agents=self._num_agents, agent_idx=i, is_host=(i == 0), host_address=self.host_address,
+                port=self.port, async_mode=self.async_mode, netmode=self.netmode, ticrate=self.ticrate,
+                seed=(None if seed is None else int(seed) + i), verbose=verbose,
             )
-            p.start()
-            self._pipes_parent.append(parent_end)
-            self._procs.append(p)
+
+            # 2. Serialize arguments to pass them on the command line
+            hex_kwargs = pickle.dumps(worker_kwargs).hex()
+
+            # 3. Launch the worker script as an independent subprocess
+            cmd = [sys.executable, str(worker_path), hex_kwargs]
+            proc = subprocess.Popen(cmd, stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+
+            self._procs.append(proc)
+            self._pipes[agent_name] = (proc.stdin, proc.stdout)
+
 
         # timeout / PZ bookkeeping
         self._frames_advanced = 0
@@ -381,21 +211,25 @@ class VizdoomParallelEnv(ParallelEnv):
         self._dead_agents.clear()
 
         # broadcast reset, collect results
-        for pipe in self._pipes_parent:
-            pipe.send(("reset", None))
-        results = [pipe.recv() for pipe in self._pipes_parent]
+        for agent in self.agents:
+            stdin, _ = self._pipes[agent]
+            pickle.dump(("reset", None), stdin)
+            stdin.flush()
+
+        # Collect results from all workers
+        results_dict = {agent: pickle.load(self._pipes[agent][1]) for agent in self.agents}
 
         obs: Dict[str, np.ndarray] = {}
         infos: Dict[str, Dict[str, Any]] = {}
         for i, agent in enumerate(self.agents):
-            frame = results[i]["obs"]
+            frame = results_dict[agent]["obs"]
             # update channel inference once
             c = frame.shape[2]
             if c != self._obs_shape[2]:
                 self._obs_shape = (self._obs_shape[0], self._obs_shape[1], c)
                 self._observation_space = spaces.Box(0, 255, shape=self._obs_shape, dtype=np.uint8)
             obs[agent] = frame
-            infos[agent] = results[i].get("info", {})
+            infos[agent] = results_dict[agent].get("info", {})
             self._last_frames[agent] = frame
 
         return obs, infos
@@ -413,10 +247,12 @@ class VizdoomParallelEnv(ParallelEnv):
         # Send commands: respawn for dead agents, step for alive agents
         for i, agent in enumerate(self.agents):
             cmd = "respawn" if agent in self._dead_agents else "step"
-            self._pipes_parent[i].send((cmd, flat_actions[i]))
+            stdin, _ = self._pipes[agent]
+            pickle.dump((cmd, flat_actions[i]), stdin)
+            stdin.flush()
 
-        # 2) recv
-        results = [pipe.recv() for pipe in self._pipes_parent]
+        # Receive results from all workers
+        results_dict = {agent: pickle.load(self._pipes[agent][1]) for agent in self.agents}
 
         observations: Dict[str, np.ndarray] = {}
         rewards: Dict[str, float] = {}
@@ -427,7 +263,7 @@ class VizdoomParallelEnv(ParallelEnv):
         respawned_agents = set()
 
         for i, agent in enumerate(self.agents):
-            results_a = results[i]
+            results_a = results_dict[agent]
             frame = results_a["obs"]
             observations[agent] = frame
             rewards[agent] = float(results_a.get("reward", 0.0))
@@ -460,35 +296,35 @@ class VizdoomParallelEnv(ParallelEnv):
                 self._truncations[a] = True
                 infos[a]["TimeLimit.truncated"] = True
 
-        terminations = self._terminations.copy()
-        truncations = self._truncations.copy()
+        if any(self._terminations.values()):
+            for a in self.agents: self._terminations[a] = True
+        if any(bool(r.get("truncated", False)) for r in results_dict.values()):
+            for a in self.agents: self._truncations[a] = True
 
-        any_term = any(bool(r.get("terminated", False)) for r in results)
-        any_trunc = any(bool(r.get("truncated", False)) for r in results)
-
-        # If any agent finishes, finish the episode for ALL agents this step.
-        if any_term:
-            for a in self.agents:
-                self._terminations[a] = True
-        if any_trunc:
-            for a in self.agents:
-                self._truncations[a] = True
-
-        return observations, rewards, terminations, truncations, infos
+        return observations, rewards, self._terminations.copy(), self._truncations.copy(), infos
 
     def close(self):
-        # tell children to close
-        for pipe in self._pipes_parent:
+        for agent in self.agents:
             try:
-                pipe.send(("close", None))
-            except Exception:
+                stdin, _ = self._pipes.get(agent, (None, None))
+                if stdin and not stdin.closed:
+                    pickle.dump(("close", None), stdin)
+                    stdin.flush()
+                    stdin.close()
+            except (IOError, BrokenPipeError):
                 pass
-        # join
+
+        # Terminate and wait for the processes to exit
         for p in self._procs:
             try:
-                p.join(timeout=1.0)
+                p.terminate()  # Send SIGTERM
+                p.wait(timeout=2.0)
+            except subprocess.TimeoutExpired:
+                p.kill()  # Force kill if unresponsive
             except Exception:
                 pass
+        self._procs.clear()
+        self._pipes.clear()
         # pygame
         if self._screen is not None:
             try:
