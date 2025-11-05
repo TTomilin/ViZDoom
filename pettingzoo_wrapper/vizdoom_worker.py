@@ -2,6 +2,8 @@ from pathlib import Path
 import pickle
 import sys
 
+import numpy as np
+
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
@@ -9,9 +11,9 @@ sys.path.insert(0, str(project_root))
 from typing import Optional
 
 import vizdoom as vzd
-from vizdoom import Mode
 
-from pettingzoo_wrapper.utils import screen_res, parse_hw, get_flat_game_vars, read_frame
+from pettingzoo_wrapper.utils import get_screen_resolution, parse_hw, get_flat_game_vars, read_frame, discover_buttons
+from vizdoom import Mode, GameVariable
 
 def run_worker(
         *,
@@ -41,11 +43,7 @@ def run_worker(
     game = vzd.DoomGame()
     game.load_config(config_path)
 
-    game.set_window_visible(False)
-    game.set_sound_enabled(False)
-    game.set_console_enabled(False)
-    game.set_render_hud(True)
-    game.set_screen_resolution(screen_res(resolution))
+    game.set_screen_resolution(get_screen_resolution(resolution))
     game.set_ticrate(ticrate)
     game.set_mode(Mode.ASYNC_PLAYER if async_mode else Mode.PLAYER)
 
@@ -83,7 +81,7 @@ def run_worker(
                 game.respawn_player()
                 state = game.get_state()
                 frame = read_frame(state, resolution)
-                info = {"num_frames": frames_per_step, "player_died": False, "just_died": False, "step": steps}
+                info = {"num_frames": frames_per_step, "player_dead": False, "just_died": False, "step": steps}
                 info.update(get_flat_game_vars(state, available_game_vars))
                 result = {"obs": frame, "reward": 0.0, "terminated": False, "info": info}
 
@@ -98,7 +96,7 @@ def run_worker(
                     print(f"Player {agent_name} terminated at step {game.get_episode_time()}")
                 state = game.get_state()
                 frame = read_frame(state, resolution)
-                info = {"num_frames": frames_per_step, "player_died": is_dead, "just_died": just_died, "step": steps}
+                info = {"num_frames": frames_per_step, "player_dead": is_dead, "just_died": just_died, "step": steps}
                 info.update(get_flat_game_vars(state, available_game_vars))
                 result = {"obs": frame, "reward": reward, "terminated": terminated, "truncated": truncated, "info": info}
                 steps += frames_per_step
@@ -117,7 +115,7 @@ def run_worker(
 
                 state = game.get_state()
                 frame = read_frame(state, resolution)
-                info = {"num_frames": frames_per_step, "player_died": is_dead, "just_died": False, "step": steps}
+                info = {"num_frames": frames_per_step, "player_dead": is_dead, "just_died": False, "step": steps}
                 info.update(get_flat_game_vars(state, available_game_vars))
                 result = {"obs": frame, "reward": 0.0, "terminated": False, "truncated": game.is_episode_finished(), "info": info, "respawned": respawned}
                 steps += frames_per_step
@@ -126,8 +124,9 @@ def run_worker(
                 break
             else:
                 # Send a dummy response for safety
-                dummy_frame = read_frame(None, resolution)
-                result = {"obs": dummy_frame, "reward": 0.0, "terminated": False, "info": {}}
+                h, w = parse_hw(resolution)
+                zero_frame = np.zeros((h, w, 3), dtype=np.uint8)
+                result = {"obs": zero_frame, "reward": 0.0, "terminated": False, "info": {}}
 
             # Send the result back to the parent and flush the buffer
             pickle.dump(result, stdout)

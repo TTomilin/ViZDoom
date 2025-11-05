@@ -9,7 +9,7 @@ Usage:
     env = VizdoomParallelEnv(
         scenario="health_gathering",
         num_agents=2,
-        resolution="160x120",
+        resolution="160X120",
         skip_frames=4,
         async_mode=True,
         host_address="127.0.0.1",
@@ -38,14 +38,13 @@ from pathlib import Path
 import time
 
 from pettingzoo import ParallelEnv
-from pettingzoo_wrapper.utils import screen_res, parse_hw, get_flat_game_vars, read_frame
+from pettingzoo_wrapper.utils import parse_hw, discover_buttons
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from gymnasium import spaces
 
 import vizdoom as vzd
-from vizdoom import Mode
 import pygame
 import cv2
 
@@ -53,14 +52,13 @@ import cv2
 # -------------------------- main PettingZoo env ---------------------------
 
 class VizdoomParallelEnv(ParallelEnv):
-    metadata = {"name": "vizdoom_pz_parallel", "render_modes": ["human", "rgb_array"], "render_fps": 35}
 
     def __init__(
             self,
             *,
             config_file: str,
             num_agents: int = 2,
-            resolution: str = "160x120",
+            resolution: str = "160X120",
             timeout: Optional[int] = None,
             skip_frames: Optional[int] = 1,
             async_mode: bool = True,
@@ -93,7 +91,7 @@ class VizdoomParallelEnv(ParallelEnv):
         self.agents: List[str] = self.possible_agents[:]
 
         # Discover spaces (no net init needed)
-        self._delta_count, self._binary_count = self._discover_buttons(config_file)
+        self._delta_count, self._binary_count = discover_buttons(config_file)
         self._simple_n = (3 ** self._delta_count) * (2 ** self._binary_count)
         self._act_len = self._delta_count + self._binary_count
         self._action_space = self._build_action_space()
@@ -136,7 +134,6 @@ class VizdoomParallelEnv(ParallelEnv):
             self._procs.append(proc)
             self._pipes[agent_name] = (proc.stdin, proc.stdout)
 
-
         # timeout / PZ bookkeeping
         self._frames_advanced = 0
         self._timeout = int(timeout) if timeout is not None else None
@@ -156,17 +153,6 @@ class VizdoomParallelEnv(ParallelEnv):
         time.sleep(1.0)
 
     # ------------- space helpers -------------
-    def _discover_buttons(self, cfg: str) -> Tuple[int, int]:
-        game = vzd.DoomGame()
-        game.load_config(cfg)
-        game.set_window_visible(False)
-        delta, binary = [], []
-        for b in game.get_available_buttons():
-            if vzd.is_delta_button(b) and b not in delta:
-                delta.append(b)
-            else:
-                binary.append(b)
-        return len(delta), len(binary)
 
     def _build_action_space(self) -> spaces.Space:
         if self.simple_discrete:
@@ -284,7 +270,7 @@ class VizdoomParallelEnv(ParallelEnv):
 
         # Track newly dead agents (but don't respawn them until next step)
         for i, agent in enumerate(self.agents):
-            if infos[agent].get("player_died", False) and agent not in self._dead_agents:
+            if infos[agent].get("player_dead", False) and agent not in self._dead_agents:
                 self._dead_agents.add(agent)
 
         # 3) time-limit truncation (assume same num_frames for all)
