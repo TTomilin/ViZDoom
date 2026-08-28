@@ -334,6 +334,7 @@ class VizdoomExperiment(Experiment):
             "group": self.task_name,
             "id": run_id,
             "name": run_id,
+            "tags": list(self.task.config.get("wandb_tags", [])),
         }
 
         original = self.config.wandb_extra_kwargs
