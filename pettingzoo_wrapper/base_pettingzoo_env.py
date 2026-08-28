@@ -182,16 +182,19 @@ def _agent_worker_thread(
                 action = task.action if task.action is not None else []
                 tics = max(1, int(task.tics))
                 was_dead_before = game.is_player_dead()
+                died_during_step = False
                 game.set_action(action)
                 for tic in range(tics):
                     update_state = tic == tics - 1
                     game.advance_action(1, update_state)
+                    if game.is_player_dead():
+                        died_during_step = True
                     if not update_state:
                         # Keep synchronous multiplayer peers on the same tic
                         step_barrier.wait(timeout=_STEP_TIMEOUT)
                 reward = float(game.get_last_reward())
                 is_dead = game.is_player_dead()
-                just_died = (not was_dead_before) and is_dead
+                just_died = died_during_step and not was_dead_before
                 episode_finished = bool(game.is_episode_finished())
                 truncated = episode_finished and bool(game.is_episode_timeout_reached())
                 terminated = episode_finished and not truncated

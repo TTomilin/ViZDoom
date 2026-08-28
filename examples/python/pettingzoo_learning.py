@@ -25,7 +25,7 @@ python -m examples.python.pettingzoo_learning
     --record_every 10 \
     --parallel_collection \
 """
-
+import os
 import time
 from argparse import ArgumentParser, BooleanOptionalAction
 from collections import deque
@@ -167,10 +167,15 @@ class WandbLoggingWrapper(Logger):
         metrics = {}
         if not rollouts:
             return metrics
-        combat_info = {
-            "DAMAGECOUNT": "damage",
-            "FRAGCOUNT": "frags",
-            "DEATHCOUNT": "deaths",
+        # info_key -> (metric_name, cumulative)
+        # cumulative=True: value is a running counter -> diffed per-step, with episode-reset masking
+        # cumulative=False: value is already a per-step signal -> summed directly over the episode
+        info_metrics = {
+            "DAMAGECOUNT": ("damage", True),
+            "FRAGCOUNT": ("frags", True),
+            "DEATHCOUNT": ("deathcount", True),
+            "just_died": ("deaths", False),
+            "death_penalty": ("death_penalty", False),
         }
         for group, agents in self.group_map.items():
             returns = torch.stack(
@@ -186,24 +191,27 @@ class WandbLoggingWrapper(Logger):
                     returns[:, agent_index],
                 )
 
-                for info_key, metric_name in combat_info.items():
+                for info_key, (metric_name, cumulative) in info_metrics.items():
                     values = []
                     for rollout in rollouts:
                         info = rollout.get(("next", group, "info"), None)
                         value = None if info is None else info.get(info_key, None)
                         if value is None:
                             break
-                        deltas = value[1:, agent_index] - value[:-1, agent_index]
-                        reset = torch.zeros_like(deltas, dtype=torch.bool)
-                        for reset_key in ("DAMAGECOUNT", "DEATHCOUNT"):
-                            counter = info.get(reset_key, None)
-                            if counter is not None:
-                                reset |= (
-                                    counter[1:, agent_index] < counter[:-1, agent_index]
-                                )
-                        values.append(
-                            deltas.masked_fill(reset, 0).sum(dim=0).float().mean()
-                        )
+                        if cumulative:
+                            deltas = value[1:, agent_index] - value[:-1, agent_index]
+                            reset = torch.zeros_like(deltas, dtype=torch.bool)
+                            for reset_key in ("DAMAGECOUNT", "DEATHCOUNT"):
+                                counter = info.get(reset_key, None)
+                                if counter is not None:
+                                    reset |= (
+                                        counter[1:, agent_index] < counter[:-1, agent_index]
+                                    )
+                            values.append(
+                                deltas.masked_fill(reset, 0).sum(dim=0).float().mean()
+                            )
+                        else:
+                            values.append(value[:, agent_index].float().sum(dim=0))
                     if len(values) == len(rollouts):
                         self._log_min_mean_max(
                             metrics,
@@ -715,9 +723,9 @@ def main():
     ap.add_argument("--netmode", type=int, default=0)
     ap.add_argument("--ticrate", type=int, default=None)
     ap.add_argument("--verbose", action="store_true", default=False)
-    ap.add_argument(
-        "--daemon", dest="daemon", action=BooleanOptionalAction, default=True
-    )
+    ap.add_argument("--daemon", dest="daemon", action=BooleanOptionalAction, default=True)
+    ap.add_argument("--wandb_tags", type=str, nargs="*", default=[], help="Tags to attach to the wandb run")
+
 
     # Train args
     ap.add_argument("--algo", type=str, default="mappo", choices=list(ALGOS))
@@ -789,11 +797,8 @@ def main():
     checkpoints_path = root_path / "checkpoints"
     Path(checkpoints_path).mkdir(parents=True, exist_ok=True)
     run_timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_id = (
-        f"{args.algo}_{args.scenario}"
-        f"_{args.num_agents}agents_{args.num_envs}envs"
-        f"_seed{args.seed}_{run_timestamp}"
-    )
+    unique_suffix = str(os.getpid())
+    run_id = f"{args.algo}_{args.scenario}_{args.num_agents}agents_seed{args.seed}_{run_timestamp}_{unique_suffix}"
     if args.algo not in ALGOS:
         raise NotImplementedError(
             f"{args.algo} is not currently implemented in this script"
@@ -871,6 +876,7 @@ def main():
         "verbose": args.verbose,
         "run_id": run_id,
         "double_buffer": args.double_buffer,
+        "wandb_tags": args.wandb_tags,
     }
     task = VizdoomTask(task_cfg)
 
@@ -881,6 +887,7 @@ def main():
         critic_model_config=critic_cfg,
         seed=args.seed,
         config=exp_cfg,
+
     )
 
     Path(str(exp_cfg.save_folder)).mkdir(parents=True, exist_ok=True)

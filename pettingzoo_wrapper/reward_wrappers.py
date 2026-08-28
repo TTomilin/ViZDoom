@@ -153,6 +153,8 @@ class HealthGatheringRewardWrapper(ParallelEnv):
         obs, infos = self.env.reset(seed=seed, options=options)
         self.agents = self.env.agents[:]
         self.prev_health = {a: infos[a][self.health_key] for a in self.agents}
+        for a in self.agents:
+            infos[a]["death_penalty"] = 0.0
         return obs, infos
 
     def step(self, actions: Dict[str, Any]):
@@ -172,8 +174,10 @@ class HealthGatheringRewardWrapper(ParallelEnv):
             if h_cur > h_prev:
                 r += self.medkit_reward
 
-            if infos[a]["just_died"]:
-                r += self.death_penalty
+            died = bool(infos[a]["just_died"])
+            penalty = self.death_penalty if died else 0.0
+            r += penalty
+            infos[a]["death_penalty"] = penalty
 
             rewards[a] = r
             self.prev_health[a] = h_cur
