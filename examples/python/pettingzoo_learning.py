@@ -59,7 +59,8 @@ class WandbLoggingWrapper(Logger):
     ):
         super().__init__(*args, **kwargs)
         self._skip_frames = max(1, int(skip_frames))
-        self._env_steps = 0
+        self._env_steps = 0  # decisions == total_frames (the step axis)
+        self._engine_frames = 0  # decisions * skip_frames (raw frame count)
         self._fps_samples = deque(maxlen=12)
         self._has_wandb_logger = any(
             isinstance(logger, WandbLogger) for logger in self.loggers
@@ -72,17 +73,18 @@ class WandbLoggingWrapper(Logger):
             wandb.define_metric("*", step_metric=self.env_step_metric)
 
     def _prepare_iteration_metrics(self, total_frames: int):
-        self._env_steps = int(total_frames) * self._skip_frames
+        self._env_steps = int(total_frames)
+        self._engine_frames = self._env_steps * self._skip_frames
         self._pending_metrics = None
         now = time.perf_counter()
-        self._fps_samples.append((now, self._env_steps))
+        self._fps_samples.append((now, self._engine_frames))
         if len(self._fps_samples) > 1:
-            t0, env_steps0 = self._fps_samples[0]
+            t0, engine_frames0 = self._fps_samples[0]
             delta_time = now - t0
-            delta_env_steps = self._env_steps - env_steps0
-            if delta_time > 0 and delta_env_steps > 0:
+            delta_engine_frames = self._engine_frames - engine_frames0
+            if delta_time > 0 and delta_engine_frames > 0:
                 self._pending_metrics = {
-                    "counters/wallclock_fps": float(delta_env_steps / delta_time)
+                    "counters/wallclock_fps": float(delta_engine_frames / delta_time)
                 }
 
     def _add_fps(self, dict_to_log):
@@ -103,6 +105,7 @@ class WandbLoggingWrapper(Logger):
             payload["counters/fps"] = (
                     float(current_frames) * self._skip_frames / float(collection_time)
             )
+        payload["counters/engine_frames"] = float(self._engine_frames)
         return payload
 
     def log_collection(
@@ -210,7 +213,8 @@ class WandbLoggingWrapper(Logger):
         return metrics
 
     def log_evaluation(self, rollouts, total_frames: int, step: int, video_frames=None):
-        self._env_steps = int(total_frames) * self._skip_frames
+        self._env_steps = int(total_frames)
+        self._engine_frames = self._env_steps * self._skip_frames
         result = super().log_evaluation(
             rollouts=rollouts,
             total_frames=total_frames,
