@@ -544,12 +544,16 @@ class VizdoomTask(TaskClass):
             return_state=False,
         )
         group_name = next(iter(env.group_map.keys()))
-        selected_keys = [(group_name, "observation"), (group_name, "info")]
-        image_key = (
-            (group_name, "observation", "image")
-            if cfg.get("vector_obs", False)
-            else (group_name, "observation")
-        )
+        if cfg.get("vector_obs", False):
+            observation_keys = [
+                (group_name, "observation", "image"),
+                (group_name, "observation", "vector"),
+            ]
+            image_key = (group_name, "observation", "image")
+        else:
+            observation_keys = [(group_name, "observation")]
+            image_key = (group_name, "observation")
+        selected_keys = observation_keys + [(group_name, "info")]
         transforms = [
             SelectTransform(*selected_keys),
             AHWCToTensor(key=image_key),
