@@ -19,6 +19,73 @@ _DEATHMATCH_DELTA_REWARDS = {
 }
 
 
+class SharedRewardWrapper(ParallelEnv):
+    """
+    Pools per-agent rewards into a single team reward (sum or mean across
+    every currently active agent) and broadcasts it back to all of them.
+    """
+
+    def __init__(self, env: ParallelEnv, *, agg: str = "mean"):
+        if agg not in ("sum", "mean"):
+            raise ValueError(f"agg must be 'sum' or 'mean', got {agg!r}")
+        self.env = env
+        self.agg = agg
+        self.metadata = getattr(env, "metadata", {})
+        self.possible_agents = env.possible_agents
+        self.agents = env.agents
+
+    def action_space(self, agent: str):
+        return self.env.action_space(agent)
+
+    def observation_space(self, agent: str):
+        return self.env.observation_space(agent)
+
+    @property
+    def state_space(self):
+        return self.env.state_space
+
+    def state(self):
+        return self.env.state()
+
+    def state_observation(self, agent: str):
+        return self.env.state_observation(agent)
+
+    @property
+    def num_agents(self) -> int:
+        return getattr(self.env, "num_agents", len(self.possible_agents))
+
+    def reset(
+        self, seed: Optional[int] = None, options: Optional[Dict[str, Any]] = None
+    ):
+        obs, infos = self.env.reset(seed=seed, options=options)
+        self.agents = self.env.agents[:]
+        for a in self.agents:
+            infos[a]["individual_reward"] = 0.0
+        return obs, infos
+
+    def step(self, actions: Dict[str, Any]):
+        obs, rewards, terminations, truncations, infos = self.env.step(actions)
+        self.agents = self.env.agents[:]
+
+        values = list(rewards.values())
+        pooled = 0.0
+        if values:
+            pooled = sum(values) / len(values) if self.agg == "mean" else sum(values)
+
+        shared_rewards = {}
+        for a, r in rewards.items():
+            infos[a]["individual_reward"] = float(r)
+            shared_rewards[a] = pooled
+
+        return obs, shared_rewards, terminations, truncations, infos
+
+    def render(self):
+        return self.env.render()
+
+    def close(self):
+        return self.env.close()
+
+
 class DeathmatchRewardWrapper(ParallelEnv):
     def __init__(self, env: ParallelEnv):
         self.env = env

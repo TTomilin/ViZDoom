@@ -10,6 +10,11 @@ from vizdoom.pettingzoo_wrapper.reward_wrappers import (
     HealthGatheringRewardWrapper,
     PitfallRewardWrapper,
     RemedyRushRewardWrapper,
+    SharedRewardWrapper,
+)
+from vizdoom.pettingzoo_wrapper.vector_obs import (
+    SCENARIO_VECTOR_OBS,
+    VectorStateObservationWrapper,
 )
 from vizdoom.pettingzoo_wrapper.video_recorder import VideoLoggerParallelWrapper
 
@@ -46,12 +51,14 @@ def make(
     ticrate: int = 35,
     render_mode: Optional[str] = None,
     seed: Optional[int] = None,
-    # video logging
     enable_video: bool = True,
     record_every: int = 100,  # every N episodes
     video_fps: int = 35,
     verbose: bool = False,
     daemon: bool = True,
+    vector_obs: bool = False,
+    reward_mode: str = "individual",
+    shared_reward_agg: str = "sum",
 ):
     scenario = scenario.lower() if scenario is not None else None
     cfg = config_file if config_file is not None else f"{_SCENARIO_DIR}/{scenario}.cfg"
@@ -84,6 +91,17 @@ def make(
 
     if scenario in _WRAPPERS:
         env = _WRAPPERS[scenario](env)
+
+    if reward_mode == "shared":
+        env = SharedRewardWrapper(env, agg=shared_reward_agg)
+    elif reward_mode != "individual":
+        raise ValueError(f"reward_mode must be 'individual' or 'shared', got {reward_mode!r}")
+
+    if vector_obs:
+        spec = SCENARIO_VECTOR_OBS.get(scenario)
+        if spec is None:
+            raise ValueError(f"vector_obs=True but '{scenario!r}' has no entry in SCENARIO_VECTOR_OBS.")
+        env = VectorStateObservationWrapper(env, spec)
 
     # filter info key that is not in its spec
     return InternalInfoFilter(env)

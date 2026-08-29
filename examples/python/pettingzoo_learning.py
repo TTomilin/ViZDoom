@@ -1,18 +1,6 @@
 """
 Example usage:
 
-pip install vizdoom==1.3.0 \
-            benchmarl==1.5.2 \
-            torchrl==0.11.1 \
-            tensordict==0.11.0 \
-            pettingzoo==1.24.3 \
-            wandb==0.22.1 \
-            gymnasium==0.29.1 \
-            pygame-ce==2.5.7 \
-            imageio==2.37.3 \
-            imageio-ffmpeg==0.6.0 \
-            opencv-python-headless
-
 python -m examples.python.pettingzoo_learning
     --algo mappo \
     --scenario health_gathering_multi_agent \
@@ -55,7 +43,6 @@ import vizdoom as vzd
 from pettingzoo_wrapper import make
 from pettingzoo_wrapper.rollout_worker import RolloutWorker
 
-
 DEFAULT_BASE_UDP_PORT = 40300
 SLOT_PORT_STRIDE = 100
 ENV_INSTANCE_INDEX_BASE = 100
@@ -65,10 +52,10 @@ class WandbLoggingWrapper(Logger):
     env_step_metric = "_env_steps"
 
     def __init__(
-        self,
-        *args,
-        skip_frames: int = 1,
-        **kwargs,
+            self,
+            *args,
+            skip_frames: int = 1,
+            **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self._skip_frames = max(1, int(skip_frames))
@@ -109,17 +96,17 @@ class WandbLoggingWrapper(Logger):
         collection_time = payload.get("timers/collection_time")
         current_frames = payload.get("counters/current_frames")
         if (
-            collection_time is not None
-            and current_frames is not None
-            and collection_time > 0
+                collection_time is not None
+                and current_frames is not None
+                and collection_time > 0
         ):
             payload["counters/fps"] = (
-                float(current_frames) * self._skip_frames / float(collection_time)
+                    float(current_frames) * self._skip_frames / float(collection_time)
             )
         return payload
 
     def log_collection(
-        self, batch: TensorDictBase, task: TaskClass, total_frames: int, step: int
+            self, batch: TensorDictBase, task: TaskClass, total_frames: int, step: int
     ):
         self._prepare_iteration_metrics(total_frames)
         return super().log_collection(
@@ -130,14 +117,14 @@ class WandbLoggingWrapper(Logger):
         )
 
     def _log_individual_and_group_rewards(
-        self,
-        group: str,
-        batch: TensorDictBase,
-        global_done: torch.Tensor,
-        any_episode_ended: bool,
-        to_log: Dict[str, torch.Tensor],
-        prefix: str = "collection",
-        log_individual_agents: bool = True,
+            self,
+            group: str,
+            batch: TensorDictBase,
+            global_done: torch.Tensor,
+            any_episode_ended: bool,
+            to_log: Dict[str, torch.Tensor],
+            prefix: str = "collection",
+            log_individual_agents: bool = True,
     ) -> torch.Tensor:
         return super()._log_individual_and_group_rewards(
             group=group,
@@ -150,10 +137,10 @@ class WandbLoggingWrapper(Logger):
         )
 
     def _log_global_episode_reward(
-        self,
-        episode_rewards: list[torch.Tensor],
-        to_log: Dict[str, torch.Tensor],
-        prefix: str,
+            self,
+            episode_rewards: list[torch.Tensor],
+            to_log: Dict[str, torch.Tensor],
+            prefix: str,
     ) -> torch.Tensor:
         if prefix == "collection" and len(episode_rewards) == 1:
             return episode_rewards[0]
@@ -176,6 +163,7 @@ class WandbLoggingWrapper(Logger):
             "DEATHCOUNT": ("deathcount", True),
             "just_died": ("deaths", False),
             "death_penalty": ("death_penalty", False),
+            "individual_reward": ("individual_reward", False),
         }
         for group, agents in self.group_map.items():
             returns = torch.stack(
@@ -205,7 +193,7 @@ class WandbLoggingWrapper(Logger):
                                 counter = info.get(reset_key, None)
                                 if counter is not None:
                                     reset |= (
-                                        counter[1:, agent_index] < counter[:-1, agent_index]
+                                            counter[1:, agent_index] < counter[:-1, agent_index]
                                     )
                             values.append(
                                 deltas.masked_fill(reset, 0).sum(dim=0).float().mean()
@@ -254,7 +242,7 @@ _ADVANTAGE_AGENT_DIM = -2
 
 
 def _enable_per_agent_advantage_normalization(
-    loss_module, group: str, n_agents: int
+        loss_module, group: str, n_agents: int
 ) -> None:
     """
     BenchMARL hardcodes `normalize_advantage=False` and doesn't expose it on the config,
@@ -455,9 +443,9 @@ class AHWCToTensor(ObservationTransform):
     """
 
     def __init__(
-        self,
-        key=("agent", "observation"),
-        dtype: torch.dtype | None = None,
+            self,
+            key=("agent", "observation"),
+            dtype: torch.dtype | None = None,
     ):
         super().__init__(in_keys=[key], out_keys=[key])
         self.key = key
@@ -481,7 +469,7 @@ class AHWCToTensor(ObservationTransform):
         return obs_spec
 
     def _reset(
-        self, tensordict: TensorDictBase, tensordict_reset: TensorDictBase
+            self, tensordict: TensorDictBase, tensordict_reset: TensorDictBase
     ) -> TensorDictBase:
         with _set_missing_tolerance(self, True):
             tensordict_reset = self._call(tensordict_reset)
@@ -511,11 +499,11 @@ class VizdoomTask(TaskClass):
         return ENV_INSTANCE_INDEX_BASE + int(env_instance_offset)
 
     def build_parallel_env(
-        self,
-        seed: int,
-        env_instance_index: int = 0,
-        enable_video: Optional[bool] = None,
-        async_mode: Optional[bool] = None,
+            self,
+            seed: int,
+            env_instance_index: int = 0,
+            enable_video: Optional[bool] = None,
+            async_mode: Optional[bool] = None,
     ):
         cfg = self.config
         base_port = self._env_instance_base_port(env_instance_index)
@@ -537,6 +525,9 @@ class VizdoomTask(TaskClass):
             video_fps=cfg["video_fps"],
             verbose=cfg.get("verbose", False),
             daemon=cfg["daemon"],
+            vector_obs=cfg.get("vector_obs", False),
+            reward_mode=cfg.get("reward_mode", "individual"),
+            shared_reward_agg=cfg.get("shared_reward_agg", "sum"),
         )
 
     def _build_training_env(self, seed: int, env_instance_index: int):
@@ -550,9 +541,14 @@ class VizdoomTask(TaskClass):
         )
         group_name = next(iter(env.group_map.keys()))
         selected_keys = [(group_name, "observation"), (group_name, "info")]
+        image_key = (
+            (group_name, "observation", "image")
+            if cfg.get("vector_obs", False)
+            else (group_name, "observation")
+        )
         transforms = [
             SelectTransform(*selected_keys),
-            AHWCToTensor(key=(group_name, "observation")),
+            AHWCToTensor(key=image_key),
             RemoveEmptySpecs(),
         ]
         env = TransformedEnv(env, Compose(*transforms))
@@ -560,7 +556,7 @@ class VizdoomTask(TaskClass):
         return env
 
     def get_env_fun(
-        self, num_envs: int, continuous_actions: bool, seed: int | None, device=None
+            self, num_envs: int, continuous_actions: bool, seed: int | None, device=None
     ):
         def _make():
             env_instance_index = self._allocate_env_instance_index()
@@ -725,25 +721,22 @@ def main():
     ap.add_argument("--ticrate", type=int, default=None)
     ap.add_argument("--verbose", action="store_true", default=False)
     ap.add_argument("--daemon", dest="daemon", action=BooleanOptionalAction, default=True)
+    ap.add_argument("--vector_obs", action=BooleanOptionalAction, default=False,
+                    help="Give agents direct access to other agents' hidden numeric game state.")
+    ap.add_argument("--reward_mode", type=str, default="individual", choices=["individual", "shared"])
+    ap.add_argument("--shared_reward_agg", type=str, default="sum", choices=["sum", "mean"])
     ap.add_argument("--wandb_tags", type=str, nargs="*", default=[], help="Tags to attach to the wandb run")
-
 
     # Train args
     ap.add_argument("--algo", type=str, default="mappo", choices=list(ALGOS))
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--total_steps", type=float, default=1e6)
-    ap.add_argument(
-        "--train_device",
-        type=str,
-        default="cuda" if torch.cuda.is_available() else "cpu",
-    )
+    ap.add_argument("--train_device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
     ap.add_argument("--sampling_device", type=str, default="cpu")
     ap.add_argument("--buffer_device", type=str, default="cpu")
     ap.add_argument("--rollout_steps", type=int, default=2048)
     ap.add_argument("--batch_size", type=int, default=2048)
-    ap.add_argument(
-        "--off_policy_memory_size", type=int, default=16384
-    )  # 2048 batch * 8 optimizer steps
+    ap.add_argument("--off_policy_memory_size", type=int, default=16384)  # 2048 batch * 8 optimizer steps
     ap.add_argument("--lr", type=float, default=5e-5)
     ap.add_argument("--gamma", type=float, default=0.99)
     ap.add_argument("--gae_lambda", type=float, default=0.95)
@@ -755,34 +748,17 @@ def main():
     ap.add_argument("--optimizer_steps", type=int, default=8)
     ap.add_argument("--num_envs", type=int, default=64)
     ap.add_argument("--parallel_collection", action=BooleanOptionalAction, default=True)
-    ap.add_argument(
-        "--double_buffer",
-        action=BooleanOptionalAction,
-        default=True,
-        help=("policy inference in 1/2 of envs overlaps, env stepping the other 1/2."),
-    )
-    ap.add_argument(
-        "--keep_checkpoints_num",
-        type=int,
-        default=1,
-        help="How many checkpoints to keep",
-    )
-    ap.add_argument(
-        "--save_replay_buffer",
-        action=BooleanOptionalAction,
-        default=False,
-        help=(
-            "Include replay buffers in checkpoints. This lets exact off-policy resume but can create really heavy checkpoint files for image observations."
-        ),
-    )
+    ap.add_argument("--double_buffer", action=BooleanOptionalAction, default=True,
+                    help="policy inference in 1/2 of envs overlaps, env stepping the other 1/2.")
+    ap.add_argument("--keep_checkpoints_num", type=int, default=1, help="How many checkpoints to keep")
+    ap.add_argument("--save_replay_buffer", action=BooleanOptionalAction, default=False,
+                    help="Include replay buffers in checkpoints. This lets exact off-policy resume but can create large files.")
 
     # Video recording
     ap.add_argument("--enable_video", action=BooleanOptionalAction, default=True)
     ap.add_argument("--record_every", type=int, default=100)
     ap.add_argument("--video_fps", type=int, default=35)
-    ap.add_argument(
-        "--render_mode", type=str, default="rgb_array", choices=["rgb_array", "human"]
-    )
+    ap.add_argument("--render_mode", type=str, default="rgb_array", choices=["rgb_array", "human"])
 
     args = ap.parse_args()
 
@@ -878,6 +854,9 @@ def main():
         "run_id": run_id,
         "double_buffer": args.double_buffer,
         "wandb_tags": args.wandb_tags,
+        "vector_obs": args.vector_obs,
+        "reward_mode": args.reward_mode,
+        "shared_reward_agg": args.shared_reward_agg,
     }
     task = VizdoomTask(task_cfg)
 
