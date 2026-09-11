@@ -57,6 +57,7 @@ def make(
     verbose: bool = False,
     daemon: bool = True,
     vector_obs: bool = False,
+    privileged_info: bool = False,
     reward_mode: str = "individual",
     shared_reward_agg: str = "sum",
 ):
@@ -80,6 +81,7 @@ def make(
         seed=seed,
         verbose=verbose,
         daemon=daemon,
+        privileged_info=privileged_info,
     )
 
     if enable_video:

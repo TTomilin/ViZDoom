@@ -40,6 +40,7 @@ def configure_doom_game(
     port: int,
     netmode: int,
     agent_idx: int,
+    privileged_info: bool = False,
 ) -> vzd.DoomGame:
     """
     Create and configure a DoomGame instance without calling game.init().
@@ -52,6 +53,9 @@ def configure_doom_game(
     game.set_screen_resolution(get_screen_resolution(resolution))
     game.set_ticrate(ticrate)
     game.set_mode(vzd.Mode.ASYNC_PLAYER if async_mode else vzd.Mode.PLAYER)
+    if privileged_info:
+        # Ground-truth object list. Meant for the oracle agent. Turn off to avoid cheating
+        game.set_objects_info_enabled(True)
     if timeout is not None:
         game.set_episode_timeout(timeout)
     if seed is not None:
@@ -97,6 +101,7 @@ class VizdoomParallelEnvBase(ParallelEnv):
         seed: int | None = None,
         verbose: bool = False,
         daemon: bool = True,
+        privileged_info: bool = False,
     ) -> None:
         assert num_agents >= 1
         self.config_file = config_file
@@ -113,6 +118,7 @@ class VizdoomParallelEnvBase(ParallelEnv):
         self._ext_seed = seed
         self.verbose = verbose
         self.daemon = daemon
+        self.privileged_info = bool(privileged_info)
 
         self.possible_agents: list[str] = [
             f"agent_{i}" for i in range(self._num_agents)

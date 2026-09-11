@@ -17,6 +17,7 @@ from vizdoom.pettingzoo_wrapper.base_env_common import (
     configure_doom_game,
 )
 from vizdoom.pettingzoo_wrapper.utils import (
+    get_privileged_state,
     get_live_game_vars,
     read_frame,
     reserve_init_slot,
@@ -65,6 +66,9 @@ def _max_parallel_init(num_agents: int) -> int:
 # Info keys that _attach_pending_reset_infos adds for video and reward wrappers
 INTERNAL_INFO_KEYS = ("_hidden_reset", "reset_info")
 
+# Info key holding engine ground truth, present only when privileged_info=True. Intended for Oracle runs
+PRIVILEGED_INFO_KEY = "privileged"
+
 
 @dataclass(frozen=True)
 class _Task:
@@ -100,6 +104,7 @@ def _agent_worker_thread(
     ticrate: int,
     seed: int | None,
     verbose: bool,
+    privileged_info: bool = False,
 ) -> None:
     game = None
     available_game_vars = []
@@ -138,6 +143,7 @@ def _agent_worker_thread(
                         port=int(task.port),
                         netmode=netmode,
                         agent_idx=agent_id,
+                        privileged_info=privileged_info,
                     )
                     if not is_host:
                         time.sleep(0.5 + random.uniform(0.5, 1.0))
@@ -163,6 +169,8 @@ def _agent_worker_thread(
                         "step": 0,
                     }
                     info.update(get_live_game_vars(game, available_game_vars))
+                    if privileged_info:
+                        info[PRIVILEGED_INFO_KEY] = get_privileged_state(game)
                     frames_advanced = 0
                     # Frames go through shared memory
                     frame_out[...] = read_frame(state, resolution)
@@ -208,6 +216,8 @@ def _agent_worker_thread(
                 }
                 # Read vars from the engine as `state` is None on terminal step
                 info.update(get_live_game_vars(game, available_game_vars))
+                if privileged_info:
+                    info[PRIVILEGED_INFO_KEY] = get_privileged_state(game)
                 frame_out[...] = read_frame(state, resolution)
                 result_queue.put(
                     {
@@ -244,6 +254,7 @@ class _AgentWorkerCoordinator:
         seed: int | None,
         verbose: bool,
         frames: np.ndarray,
+        privileged_info: bool = False,
     ) -> None:
         self.config_path = config_path
         self.resolution = resolution
@@ -258,6 +269,7 @@ class _AgentWorkerCoordinator:
         self.ticrate = int(ticrate)
         self.seed = seed
         self.verbose = bool(verbose)
+        self.privileged_info = bool(privileged_info)
         self._shm_frames = (
             frames  # Inherit through fork(), mapped MAP_SHARED by the parent
         )
@@ -308,6 +320,7 @@ class _AgentWorkerCoordinator:
                     ticrate=self.ticrate,
                     seed=(None if self.seed is None else int(self.seed) + agent_id),
                     verbose=self.verbose,
+                    privileged_info=self.privileged_info,
                 ),
                 daemon=True,
             )
@@ -534,6 +547,7 @@ class VizdoomParallelEnv(VizdoomParallelEnvBase):
                     ticrate=self.ticrate,
                     seed=self._ext_seed,
                     verbose=self.verbose,
+                    privileged_info=self.privileged_info,
                     frames=self._shm_frames,
                 ),
             ),
