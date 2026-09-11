@@ -12,6 +12,58 @@ from tensordict.nn import TensorDictModuleBase
 from torchrl.envs.utils import ExplorationType, set_exploration_type
 
 
+_IMAGE_OBS_KEY = "image"
+
+
+def _stack_agents(obs_by_agent, agent_names):
+    """Stack per-agent observations into [n_agents, ...], keeping dict obs nested."""
+    first = obs_by_agent[agent_names[0]]
+    if isinstance(first, dict):
+        return {
+            key: np.stack([obs_by_agent[agent][key] for agent in agent_names], axis=0)
+            for key in first
+        }
+    return np.stack([obs_by_agent[agent] for agent in agent_names], axis=0)
+
+
+def _stack_envs(obs_list):
+    """Stack per-env observations into [n_envs, n_agents, ...] tensors."""
+    if isinstance(obs_list[0], dict):
+        return {
+            key: torch.from_numpy(np.stack([obs[key] for obs in obs_list], axis=0))
+            for key in obs_list[0]
+        }
+    return torch.from_numpy(np.stack(obs_list, axis=0))
+
+
+def _obs_to_torch(observation):
+    if isinstance(observation, dict):
+        return {key: torch.from_numpy(value) for key, value in observation.items()}
+    return torch.from_numpy(observation)
+
+
+def _index_obs(observation, index: int):
+    if isinstance(observation, dict):
+        return {key: value[index] for key, value in observation.items()}
+    return observation[index]
+
+
+def _image_of(observation):
+    """Image entry of a (possibly dict) observation."""
+    if isinstance(observation, dict):
+        return observation.get(_IMAGE_OBS_KEY, next(iter(observation.values())))
+    return observation
+
+
+def _write_obs_fields(fields: dict, name: str, observation) -> None:
+    """Flatten dict observations into "<name>/<key>" storage buffers."""
+    if isinstance(observation, dict):
+        for key, value in observation.items():
+            fields[f"{name}/{key}"] = value
+    else:
+        fields[name] = observation
+
+
 _ENV_INSTANCE_SEED_STRIDE = 1_000
 _RESTART_SEED_STRIDE = 100_000
 _MAX_ENV_INSTANCE_RECREATE_ATTEMPTS = 1
@@ -64,15 +116,15 @@ class _EnvInstance:
         if self.env is None or self._episode_reward is None or not self._obs:
             self.restart("env instance was not ready for collection")
 
-    def current_observation(self) -> np.ndarray:
+    def current_observation(self) -> np.ndarray | dict[str, np.ndarray]:
         self.ensure_ready()
-        return np.stack([self._obs[agent] for agent in self.agent_names], axis=0)
+        return _stack_agents(self._obs, self.agent_names)
 
     def current_state(self) -> np.ndarray:
         self.ensure_ready()
         if self.env is not None and hasattr(self.env, "state"):
             return np.asarray(self.env.state())
-        return self.current_observation()
+        return _image_of(self.current_observation())
 
     def step(self, actions):
         self.ensure_ready()
@@ -97,13 +149,11 @@ class _EnvInstance:
         truncated = np.asarray(
             [bool(truncations[agent]) for agent in self.agent_names], dtype=np.bool_
         ).reshape(self.n_agents, 1)
-        next_observation = np.stack(
-            [next_obs[agent] for agent in self.agent_names], axis=0
-        )
+        next_observation = _stack_agents(next_obs, self.agent_names)
         if self.env is not None and hasattr(self.env, "state"):
             next_state = np.asarray(self.env.state())
         else:
-            next_state = next_observation
+            next_state = _image_of(next_observation)
         done = np.logical_or(terminated, truncated)
 
         if bool(done.any()):
@@ -225,11 +275,25 @@ class _RolloutStorage:
     def get(self, name: str) -> torch.Tensor | None:
         return self._buffers.get(name)
 
+    def get_obs(self, name: str) -> torch.Tensor | dict[str, torch.Tensor] | None:
+        """Buffer for a flat observation, or the dict of its "<name>/<key>" buffers."""
+        buffer = self._buffers.get(name)
+        if buffer is not None:
+            return buffer
+        prefix = f"{name}/"
+        nested = {
+            key[len(prefix):]: value
+            for key, value in self._buffers.items()
+            if key.startswith(prefix)
+        }
+        return nested or None
+
 
 @dataclass
 class _GroupState:
     env_indices: list[int]
-    observation: torch.Tensor  # uint8 [k, n_agents, H, W, C]
+    # uint8 [k, n_agents, H, W, C], or a dict of such entries for dict observations
+    observation: torch.Tensor | dict[str, torch.Tensor]
     state: torch.Tensor | None
     actions: torch.Tensor
     log_prob: torch.Tensor | None
@@ -272,7 +336,7 @@ class RolloutWorker:
         self.last_profile: dict[str, float] = {}
         self._policy_time = 0.0
         self._env_wait_time = 0.0
-        self._pinned_buffers: dict[int, torch.Tensor] = {}
+        self._pinned_buffers: dict[str, torch.Tensor] = {}
 
         if self.num_envs < 1:
             raise ValueError("num_envs must be at least 1")
@@ -428,7 +492,7 @@ class RolloutWorker:
         if not ready_env_indices:
             return None
 
-        observation = torch.from_numpy(np.stack(obs_list, axis=0))
+        observation = _stack_envs(obs_list)
         state = torch.from_numpy(np.stack(state_list, axis=0)) if state_list else None
 
         policy_started = time.perf_counter()
@@ -510,15 +574,15 @@ class RolloutWorker:
         terminated = torch.from_numpy(terminated_np)
         truncated = torch.from_numpy(truncated_np)
         fields: dict[str, torch.Tensor] = {
-            "observation": state.observation[offset],
             "action": state.actions[offset],
             "reward": torch.from_numpy(reward_np),
             "episode_reward": torch.from_numpy(episode_reward_np),
             "done": done,
             "terminated": terminated,
             "truncated": truncated,
-            "next_observation": torch.from_numpy(next_obs_np),
         }
+        _write_obs_fields(fields, "observation", _index_obs(state.observation, offset))
+        _write_obs_fields(fields, "next_observation", _obs_to_torch(next_obs_np))
         if state.log_prob is not None:
             fields["log_prob"] = state.log_prob[offset]
         if self.collect_state and state.state is not None:
@@ -526,10 +590,21 @@ class RolloutWorker:
             fields["next_state"] = torch.from_numpy(next_state_np)
         return fields
 
-    def _to_policy_obs(self, group_index: int, observation) -> torch.Tensor:
+    def _to_policy_obs(self, group_index: int, observation):
+        if isinstance(observation, dict):
+            return {
+                key: self._to_policy_tensor(group_index, value, buffer_key=key)
+                for key, value in observation.items()
+            }
+        return self._to_policy_tensor(group_index, observation)
+
+    def _to_policy_tensor(
+        self, group_index: int, observation: torch.Tensor, buffer_key: str = ""
+    ) -> torch.Tensor:
         if self.policy_device.type == "cuda":
             capacity = len(self._env_groups[group_index])
-            pinned = self._pinned_buffers.get(group_index)
+            pinned_key = f"{group_index}/{buffer_key}"
+            pinned = self._pinned_buffers.get(pinned_key)
             if (
                 pinned is None
                 or pinned.shape[0] < capacity
@@ -540,7 +615,7 @@ class RolloutWorker:
                     dtype=observation.dtype,
                     pin_memory=True,
                 )
-                self._pinned_buffers[group_index] = pinned
+                self._pinned_buffers[pinned_key] = pinned
             k = observation.shape[0]
             pinned[:k].copy_(observation)
             return pinned[:k].to(self.policy_device, non_blocking=True)
@@ -549,14 +624,11 @@ class RolloutWorker:
         return observation
 
     def _finalize_batch(self, storage: _RolloutStorage) -> TensorDict:
-        observation_u8 = storage.get("observation")
-        next_observation_u8 = storage.get("next_observation")
-        if observation_u8 is None or next_observation_u8 is None:
+        # obs is uint8 before going into replay buffer
+        observation = storage.get_obs("observation")
+        next_observation = storage.get_obs("next_observation")
+        if observation is None or next_observation is None:
             raise ValueError("Cannot assemble an empty transition batch")
-
-        # obs is unint8 before going into replay buffer
-        observation = observation_u8
-        next_observation = next_observation_u8
 
         action = storage.get("action")
         reward = storage.get("reward")

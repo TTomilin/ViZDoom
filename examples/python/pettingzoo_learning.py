@@ -418,7 +418,7 @@ def _normalize_byte_observations(model):
     obs_keys = [
         key
         for key in model.in_keys
-        if (key[-1] if isinstance(key, tuple) else key) in ("observation", "state")
+        if {"observation", "state"} & set(key if isinstance(key, tuple) else (key,))
     ]
     if not obs_keys:
         return model
