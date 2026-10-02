@@ -640,6 +640,22 @@ def override_config(config, overrides) -> Any:
     return config
 
 
+def scenario_episode_steps(scenario: str, skip_frames: int) -> Optional[int]:
+    """
+    Agent steps in one episode, from the scenario's episode_timeout (in tics).
+    BenchMARL caps evaluation rollouts at Task.max_steps by default.
+    """
+    cfg_path = Path(__file__).parent.parent.parent / "scenarios" / f"{scenario}.cfg"
+    if not cfg_path.exists():
+        return None
+    for line in cfg_path.read_text().splitlines():
+        key, _, value = line.partition("=")
+        if key.strip().replace("_", "").lower() == "episodetimeout":
+            tics = int(value.split("#")[0].strip())
+            return -(-tics // max(1, skip_frames))
+    return None
+
+
 def override_algo_config(args):
     algo_cfg = ALGOS[args.algo].get_from_yaml()
 
@@ -722,6 +738,7 @@ def main():
     ap.add_argument("--num_agents", type=int, default=2)
     ap.add_argument("--resolution", type=str, default="160X120")
     ap.add_argument("--skip_frames", type=int, default=4)
+    ap.add_argument("--max_episode_steps", type=int, default=None, help="evaluation episode length in agent steps")
     ap.add_argument("--async-mode", action=BooleanOptionalAction, default=False)
     ap.add_argument("--host_address", type=str, default="127.0.0.1")
     ap.add_argument("--base_port", type=int, default=DEFAULT_BASE_UDP_PORT)
@@ -866,6 +883,9 @@ def main():
         "reward_mode": args.reward_mode,
         "shared_reward_agg": args.shared_reward_agg,
     }
+    timeout = args.max_episode_steps or scenario_episode_steps(args.scenario, args.skip_frames)
+    if timeout is not None:
+        task_cfg["timeout"] = timeout
     task = VizdoomTask(task_cfg)
 
     experiment = VizdoomExperiment(
