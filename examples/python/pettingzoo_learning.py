@@ -14,6 +14,8 @@ python -m examples.python.pettingzoo_learning
     --parallel_collection \
 """
 import os
+import signal
+import sys
 import time
 from argparse import ArgumentParser, BooleanOptionalAction
 from collections import deque
@@ -29,6 +31,7 @@ from benchmarl.environments import TaskClass
 from benchmarl.experiment import Experiment, ExperimentConfig
 from benchmarl.experiment.logger import Logger
 from benchmarl.models import CnnConfig
+from benchmarl.utils import seed_everything
 from tensordict import TensorDictBase
 from torch import nn
 from torchrl.data import Composite
@@ -302,6 +305,39 @@ class VizdoomExperiment(Experiment):
 
     and turns on per-agent advantage normalization.
     """
+
+    def run(self):
+        """
+        Same as Experiment.run, except that a crash is recorded as such in W&B.
+
+        BenchMARL's run() closes the experiment, and with it the wandb run, so
+        a run that crashed halfway shows up as "finished" with a truncated
+        history. Finish the wandb run with a non-zero exit code first.
+        """
+        try:
+            seed_everything(self.seed)
+            torch.cuda.empty_cache()
+            self._collection_loop()
+        except BaseException:
+            print("\n\nExperiment failed, marking the wandb run as failed\n\n")
+            import wandb
+
+            if wandb.run is not None:
+                wandb.run.finish(exit_code=1)
+            self.close()
+            raise
+
+    # Exclude the replay buffer from the checkpoints by default. For on-policy
+    # algorithms the buffer is the last rollout of observations (pixels included),
+    # which makes up ~90% of a checkpoint
+    save_replay_buffer = False
+
+    def state_dict(self):
+        state_dict = super().state_dict()
+        if not self.save_replay_buffer:
+            for group in self.group_map.keys():
+                state_dict[f"buffer_{group}"] = None
+        return state_dict
 
     def _setup_algorithm(self):
         super()._setup_algorithm()
@@ -702,10 +738,9 @@ def override_experiment_config(args, on_policy: bool, on_policy_minibatch_size: 
         "evaluation_episodes": 20,
         "loggers": ["wandb"],
         "project_name": "benchmarl-vizdoom",
-        "checkpoint_interval": args.rollout_steps * 100,
+        "checkpoint_interval": args.rollout_steps * args.checkpoint_every,
         "checkpoint_at_end": True,
         "keep_checkpoints_num": args.keep_checkpoints_num,
-        "exclude_buffer_from_checkpoint": not args.save_replay_buffer,
     }
 
     if on_policy:
@@ -775,6 +810,9 @@ def main():
     ap.add_argument("--parallel_collection", action=BooleanOptionalAction, default=True)
     ap.add_argument("--double_buffer", action=BooleanOptionalAction, default=True,
                     help="policy inference in 1/2 of envs overlaps, env stepping the other 1/2.")
+    ap.add_argument("--checkpoint_every", type=int, default=0,
+                    help="Checkpoint every N rollouts during training. 0 (default) only saves "
+                         "a checkpoint at the end of training.")
     ap.add_argument("--keep_checkpoints_num", type=int, default=1, help="How many checkpoints to keep")
     ap.add_argument("--save_replay_buffer", action=BooleanOptionalAction, default=False,
                     help="Include replay buffers in checkpoints. This lets exact off-policy resume but can create large files.")
@@ -897,8 +935,11 @@ def main():
         config=exp_cfg,
 
     )
+    experiment.save_replay_buffer = args.save_replay_buffer
 
     Path(str(exp_cfg.save_folder)).mkdir(parents=True, exist_ok=True)
+    # Turn SIGTERM into SystemExit so run() marks the wandb run as failed
+    signal.signal(signal.SIGTERM, lambda signum, frame: sys.exit(128 + signum))
     experiment.run()
     experiment.close()
 
